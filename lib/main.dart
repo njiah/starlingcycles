@@ -1,7 +1,7 @@
-import 'dart:async';
+//import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart' show rootBundle;
-import 'package:sqflite/sqflite.dart'; 
+//import 'package:flutter/services.dart' show rootBundle;
+//import 'package:sqflite/sqflite.dart'; 
 
 import 'home.dart';
 
@@ -38,7 +38,7 @@ class _MyHomePageState extends State<MyHomePage> {
   int _currentIndex = 0;
 
   final List<Widget> _tabs = [
-    HomePage(),
+    const HomePage(),
     ProgressPage(),
     SettingsPage(),
   ];

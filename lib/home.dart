@@ -24,18 +24,8 @@ class _HomePageState extends State<HomePage> {
     }
     
     return Row(
-      children: <Widget>[
-      HeadingBox(greeting: greeting, dateformat: dateformat, datenow: datenow, timeformat: timeformat, timenow: timenow),
-      Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: <Widget>[
-          Container(
-            padding: const EdgeInsets.all(10),
-            color: Colors.grey[300],
-            child: const Text('Hello World', style: TextStyle(fontSize: 20)),
-          ),
-        ],
-      ),
+      children: [
+        HeadingBox(greeting: greeting, dateformat: dateformat, datenow: datenow, timeformat: timeformat, timenow: timenow),
       ],
     );
   }
