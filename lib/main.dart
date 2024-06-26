@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:sqflite/sqflite.dart'; 
 
+import 'home.dart';
+
 void main() {
   runApp(const MainApp());
 }
@@ -80,16 +82,6 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 }
 
-class HomePage extends StatelessWidget {
-  const HomePage({Key? key}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return const Center(
-      child: Text('Home Page'),
-    );
-  }
-}
 
 class ProgressPage extends StatelessWidget {
   const ProgressPage({Key? key}) : super(key: key);
