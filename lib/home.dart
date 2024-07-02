@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart'; 
 
+import 'addbatch.dart';
+
 class HomePage extends StatefulWidget {
-  const HomePage({Key? key}) : super(key: key);
+  const HomePage({super.key});
   @override
   State<HomePage> createState() => _HomePageState();
 }
@@ -10,8 +12,8 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
-    DateFormat timeformat = new DateFormat('HH:mm'); 
-    DateFormat dateformat = new DateFormat('dd-MM-yyyy');
+    DateFormat timeformat = DateFormat('HH:mm'); 
+    DateFormat dateformat = DateFormat('dd-MM-yyyy');
     DateTime timenow = timeformat.parse(timeformat.format(DateTime.now()));
     DateTime datenow = dateformat.parse(dateformat.format(DateTime.now()));
     String greeting = '';
@@ -23,11 +25,17 @@ class _HomePageState extends State<HomePage> {
       greeting = 'Good Evening!';
     }
     
-    return Row(
-      children: [
-        HeadingBox(greeting: greeting, dateformat: dateformat, datenow: datenow, timeformat: timeformat, timenow: timenow),
-      ],
-    );
+    return ListView(
+        padding: const EdgeInsets.all(50),
+        shrinkWrap: false,
+        children: [
+          HeadingBox(
+              greeting: greeting, dateformat: dateformat, datenow: datenow, timeformat: timeformat, timenow: timenow
+            ),
+          const SizedBox(height: 50),
+          const AddBatchForm(),
+        ],
+      );
   }
 }
 
@@ -49,20 +57,23 @@ class HeadingBox extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
+    return Container(
       padding: const EdgeInsets.all(20),
-      children: <Widget>[
-        Container(
-          padding: const EdgeInsets.all(10),
-          color: Colors.grey[300],
+      color: Colors.grey[200],
+      child: Row(
+        children: <Widget>[
+          Container(
+            padding: const EdgeInsets.all(10),
             child: Text(greeting, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-        ),
-        Container(
-          padding: const EdgeInsets.all(10),
-          color: Colors.grey[300],
-          child: Text('${dateformat.format(datenow)} ${timeformat.format(timenow)}', style: TextStyle(fontSize: 18)),
-        ),
-      ]
+          ),
+          const Spacer(),
+          Container(
+            padding: const EdgeInsets.all(10),
+            //color: Colors.grey[300],
+            child: Text('${dateformat.format(datenow)}    ${timeformat.format(timenow)}', style: const TextStyle(fontSize: 18)),
+          ),
+        ]
+      ),
     );
   }
 }

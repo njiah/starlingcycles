@@ -26,7 +26,7 @@ class MainApp extends StatelessWidget {
 }
 
 class MyHomePage extends StatefulWidget{
-  const MyHomePage({Key? key, required this.title}) : super(key: key);
+  const MyHomePage({super.key, required this.title});
 
   final String title;
 
@@ -39,8 +39,8 @@ class _MyHomePageState extends State<MyHomePage> {
 
   final List<Widget> _tabs = [
     const HomePage(),
-    ProgressPage(),
-    SettingsPage(),
+    const ProgressPage(),
+    const SettingsPage(),
   ];
 
   @override
@@ -50,7 +50,7 @@ class _MyHomePageState extends State<MyHomePage> {
         backgroundColor: Theme.of(context).colorScheme.primary,
 
         //title: Text(widget.title),
-        title: Container(
+        title: SizedBox(
           width: 180,
           child: Image.asset('images/logo.png'),
         ),
@@ -84,7 +84,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
 
 class ProgressPage extends StatelessWidget {
-  const ProgressPage({Key? key}) : super(key: key);
+  const ProgressPage({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -95,7 +95,7 @@ class ProgressPage extends StatelessWidget {
 }
 
 class SettingsPage extends StatelessWidget {
-  const SettingsPage({Key? key}) : super(key: key);
+  const SettingsPage({super.key});
 
   @override
   Widget build(BuildContext context) {
