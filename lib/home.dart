@@ -33,7 +33,7 @@ class _HomePageState extends State<HomePage> {
               greeting: greeting, dateformat: dateformat, datenow: datenow, timeformat: timeformat, timenow: timenow
             ),
           const SizedBox(height: 50),
-          const AddBatchForm(),
+          AddBatchForm(),
         ],
       );
   }

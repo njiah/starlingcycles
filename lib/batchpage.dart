@@ -5,7 +5,7 @@ import 'addbatch.dart';
 import 'package:flutter/material.dart'; 
 import 'package:intl/intl.dart';
 import 'package:sqflite/sqflite.dart';
-import 'package:flutter/widgets.dart';
+import 'database.dart'; 
 
 class Frame {
   final String frameNumber;
@@ -22,27 +22,43 @@ class Frame {
 }
 
 class BatchPage extends StatefulWidget {
-  final String? batchName;
+  final String batchName;
   const BatchPage({Key? key, required this.batchName}) : super(key: key);
   @override
   State<BatchPage> createState() => _BatchPageState();
 }
 
 class _BatchPageState extends State<BatchPage> {
+  final DatabaseHelper dbHelper = DatabaseHelper();
+  List<Map<String, dynamic>> _frames = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _queryFrames();
+  }
+  
+  void _queryFrames() async {
+    final data = await dbHelper.getBatchFrame('Frame', widget.batchName);
+    setState(() {
+      _frames = data;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.primary,
-        title: Text(widget.batchName!, style: const TextStyle(color: Colors.white)),
+        title: Text(widget.batchName, style: const TextStyle(color: Colors.white)),
       ),
       body: ListView(
           padding: const EdgeInsets.all(50),
           shrinkWrap: false,
           children: [
-            BatchTable(),
+            FrameTable(batchName: widget.batchName),
             const SizedBox(height: 50),
-            TimerWidget(),
+            //TimerWidget(),
           ],
         ),
       floatingActionButton: FloatingActionButton(
@@ -50,7 +66,7 @@ class _BatchPageState extends State<BatchPage> {
           showDialog(
             context: context, 
             builder: (BuildContext context) {
-              return const AddFrameForm();
+              return AddFrameForm(batchName: widget.batchName);
             },
           );
         },
@@ -64,11 +80,23 @@ class _BatchPageState extends State<BatchPage> {
 
 class BatchTable extends StatefulWidget {
   List frames = [];
-  BatchTable({Key? key, this.frames = const []});
+  //BatchTable({Key? key, this.frames = const []});
   @override
   State<BatchTable> createState() => _BatchTableState();
 }
 class _BatchTableState extends State<BatchTable> {
+  List<Map<String, dynamic>> _frames = [];
+  final dbHelper = DatabaseHelper();
+  void initState() {
+    super.initState();
+    _queryFrames();
+  }
+  void _queryFrames() async {
+    final data = await dbHelper.query('SC_account');
+    setState(() { 
+      _frames = data; 
+      });
+  }
   @override
   Widget build(BuildContext context) {
     return DataTable(
@@ -128,16 +156,73 @@ class _BatchTableState extends State<BatchTable> {
   }
 }
 
+class FrameTable extends StatefulWidget {
+  final String batchName;
+  //late Future<List<Map<String, dynamic>>> frames;
+  FrameTable({Key? key, required this.batchName}) : super(key: key);
+  @override
+  State<FrameTable> createState() => _FrameTableState();
+}
+class _FrameTableState extends State<FrameTable>{
+  final dbHelper = DatabaseHelper();
+  late Future<List<Map<String, dynamic>>> _frames;
+
+  @override
+  void initState() {
+    super.initState();
+    _frames = dbHelper.getBatchFrame('Frame', widget.batchName);
+  }
+  
+  @override
+  Widget build(BuildContext context){
+    return FutureBuilder(
+      future: _frames, 
+      builder: (context, snapshot){
+        if (!snapshot.hasData) {
+          return const Center(
+            child: Text('No Frames'),
+          );
+        } else {
+          List<Map<String, dynamic>> frames = snapshot.data as List<Map<String, dynamic>>;
+          return DataTable(
+            columns: const [
+              DataColumn(label: Text(
+                'Frame Number',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                ),),
+              DataColumn(label: Text(
+                'Model',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                )),
+              DataColumn(label: Text(
+                'Size',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                ),
+              ),
+            ], 
+            rows: frames.map(
+              (e) => DataRow(cells: [
+                DataCell(Text(e['frameNumber'])),
+                DataCell(Text(e['model'])),
+                DataCell(Text(e['size'])),
+              ])).toList(),
+          );
+        }
+      }
+    );
+  }
+}
+
 class AddFrameForm extends StatefulWidget{
-  const AddFrameForm({
-    super.key,
-  });
+  final String batchName;
+  const AddFrameForm({Key? key, required this.batchName}) : super(key: key);
 
   @override
   State<AddFrameForm> createState() => _AddFrameFormState();
 }
 
 class _AddFrameFormState extends State<AddFrameForm> {
+  final DatabaseHelper dbHelper = DatabaseHelper();
   final _formKey = GlobalKey<FormState>();
   final _frameNumberController = TextEditingController();
   final _modelController = TextEditingController();
@@ -149,6 +234,19 @@ class _AddFrameFormState extends State<AddFrameForm> {
     _modelController.dispose();
     _sizeController.dispose();
     super.dispose();
+  }
+  
+  void _addFrame() async {
+    if (_formKey.currentState!.validate()) {
+      final frame = {
+        'frameNumber': _frameNumberController.text,
+        'model': _modelController.text,
+        'size': _sizeController.text,
+        'batchNumber': widget.batchName,  
+      };
+      await dbHelper.insertItem('Frame', frame);
+      Navigator.of(context).pop();
+    }
   }
 
   @override
@@ -184,11 +282,6 @@ class _AddFrameFormState extends State<AddFrameForm> {
                   labelText: 'Size',
                 ),
               ),
-              const TextField(
-                decoration: InputDecoration(
-                  labelText: 'Date Created',
-                ),
-              ),
             ],
           ),
         ),
@@ -202,9 +295,7 @@ class _AddFrameFormState extends State<AddFrameForm> {
         ),
         TextButton(
           onPressed: () {
-            if (_formKey.currentState!.validate()) {
-              Navigator.of(context).pop();
-            }
+            _addFrame();
           },
           child: const Text('Add'),
         ),
@@ -293,7 +384,12 @@ class _TimerWidgetState extends State<TimerWidget>{
             ),
             const SizedBox(width: 20),
             ElevatedButton(
-              onPressed: stopTimer,
+              onPressed: (){
+                stopTimer();
+                setState(() {
+                  selected = false;
+                });
+              },
               child: const Text('Reset'),
             ),
           ],

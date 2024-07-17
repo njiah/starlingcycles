@@ -2,7 +2,7 @@
 import 'package:flutter/material.dart';
 //import 'package:flutter/services.dart' show rootBundle;
 //import 'package:sqflite/sqflite.dart'; 
-
+import 'database.dart';
 import 'home.dart';
 
 void main() {
@@ -88,8 +88,17 @@ class ProgressPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
-      child: Text('Progress Page'),
+    DatabaseHelper dbHelper = DatabaseHelper();
+    List<Map<String, dynamic>> data = [];
+    dbHelper.query('Process').then((value) => data = value);
+    return ListView.builder(
+      itemCount: data.length,
+      itemBuilder: (BuildContext context, int index) {
+        return ListTile(
+          title: Text(data[index]['processName']),
+          subtitle: Text(data[index]['processType']),
+        );
+      },
     );
   }
 }

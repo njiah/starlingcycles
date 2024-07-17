@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'batchpage.dart';
+import 'database.dart'; 
 
 const List<String> manufactureTypes = [
   'Mitre',
@@ -19,26 +20,87 @@ class Batch {
 }
 
 class AddBatchForm extends StatefulWidget {
-  const AddBatchForm({
-    super.key,
-  });
+  //const AddBatchForm({super.key,});
 
   @override
   State<AddBatchForm> createState() => _AddBatchFormState();
 }
 
 class _AddBatchFormState extends State<AddBatchForm> {
+  final DatabaseHelper dbHelper = DatabaseHelper();  
   final _formKey = GlobalKey<FormState>();
+
+  List<String> manufactureTypes = [];
   final _batchNameController = TextEditingController();
-  String manufactureType = manufactureTypes.first;
+  String? manufactureType;
+  String _batchNameError = ''; 
   Batch batch = Batch(batchName: 'M', manufactureType: '', dateCreated: DateTime.now());  
+  
   @override
   void dispose() {
-    _batchNameController.dispose();
+    //_batchNameController.dispose();
     //_manufactureTypeController.dispose();
     super.dispose();
   }
+  @override
+  void initState() {
+    super.initState();
+    _getManufactureType();
+  }
 
+  void _getManufactureType() async {
+    final data = await dbHelper.query('Manufacture');
+    setState(() {
+      manufactureTypes = data.map((item) => item['manufactureName'] as String).toList();
+      if (manufactureTypes.isNotEmpty) {
+        manufactureType = manufactureTypes[0];
+      }
+      else {
+        manufactureType = 'Add New';
+      }
+    });
+  }
+
+  void _validateBatchName(String value) {
+    if (value.isEmpty) {
+      setState(() {
+        _batchNameError = 'Please enter a batch name';
+      });
+    }
+    else if (!isBatchNamevalid(value)) {
+      setState(() {
+        _batchNameError = 'Please enter a valid batch name';
+      });
+    }
+    else {
+      setState(() {
+        _batchNameError = '';
+      });
+    }
+  }
+
+  bool isBatchNamevalid(String name){
+    return RegExp(r'^([A-Z]\d{3})$').hasMatch(name);
+  }
+
+  void insertBatch() async{
+    if(_formKey.currentState!.validate()){
+      Map<String, dynamic> row = {
+        'batchName': _batchNameController.text,
+        'manufacture': manufactureType,
+        'date_created': DateTime.now().toString(), 
+      };
+      print(row);
+      await dbHelper.insertItem('Batch', row);
+      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Batch added successfully'))
+      );
+      Navigator.of(context).push(
+        MaterialPageRoute(builder: (context) => BatchPage(batchName: row['batchName'])) 
+      );
+      _batchNameController.clear();
+    }
+  }
   @override
   Widget build(BuildContext context) {
     //DateFormat dateformat = DateFormat('dd-MM-yyyy');
@@ -61,21 +123,21 @@ class _AddBatchFormState extends State<AddBatchForm> {
                   decoration: const InputDecoration(
                     prefixIcon: Icon(Icons.view_agenda_outlined),
                     labelText: 'Batch Name',
-                    hintText: 'M020'
+                    hintText: 'M020',
+                    //errorText: _batchNameError,
                     ),
                   validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter a name for the batch';
+                    if (value!.isEmpty) {
+                      return 'Please enter a batch name';
+                    }
+                    else if (!isBatchNamevalid(value)) {
+                      return 'Please enter a valid batch name';
                     }
                     return null;
                   },
-                  onChanged: (String? value) {
-                    setState(() {
-                      //batch.batchName = value!;
-                    });
-                  },
+                  onChanged: _validateBatchName,
                   onSaved: (String? value) {
-                    Batch(batchName: value!, manufactureType: manufactureType, dateCreated: DateTime.now());
+                    Batch(batchName: value!, manufactureType: manufactureType.toString(), dateCreated: DateTime.now());
                     debugPrint('Batch Name: $value'); 
                   },
                 ),
@@ -86,19 +148,16 @@ class _AddBatchFormState extends State<AddBatchForm> {
                     labelText: 'Manufacture Type',
                   ),
                   value: manufactureType,
-                  items:manufactureTypes.map((String value) {
+                  items: manufactureTypes.map((String value) {
                     return DropdownMenuItem(
-                      value: value,
-                      child: Text(value),
+                      value: manufactureType,
+                      child: Text(manufactureType.toString()),
                     );
                   }).toList(),
                   onChanged: (String? value) {
                     setState(() {
-                      manufactureType = value!;
+                      manufactureType = value;
                     });
-                  },
-                  onSaved: (String? value) {
-                    debugPrint('Manufacture Type: $value');
                   },
                 ),
                 const SizedBox(height:10),
@@ -108,16 +167,7 @@ class _AddBatchFormState extends State<AddBatchForm> {
                     backgroundColor: const Color.fromARGB(255, 39, 88, 128),
                     foregroundColor: Colors.white,
                   ),
-                  onPressed: () {
-                    if (_formKey.currentState!.validate()) {
-                      //ScaffoldMessenger.of(context).showSnackBar(
-                      //  const SnackBar(content: Text('Batch added successfully'))
-                      //);
-                      Navigator.of(context).push(
-                        MaterialPageRoute(builder: (context) => BatchPage(batchName: _batchNameController.text))
-                      );
-                    }
-                  },
+                  onPressed: insertBatch,
                   child: const Text('Add Batch'),
                 ),
               ],
