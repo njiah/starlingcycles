@@ -1,9 +1,11 @@
 //import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:sqflite/sqflite.dart';
 //import 'package:flutter/services.dart' show rootBundle;
 //import 'package:sqflite/sqflite.dart'; 
 import 'database.dart';
 import 'home.dart';
+import 'batchpage.dart';
 
 void main() {
   runApp(const MainApp());
@@ -83,22 +85,82 @@ class _MyHomePageState extends State<MyHomePage> {
 }
 
 
-class ProgressPage extends StatelessWidget {
-  const ProgressPage({super.key});
+class BatchCard extends StatelessWidget{
+  const BatchCard({required this.batchname});
+  final String batchname;
 
   @override
   Widget build(BuildContext context) {
-    DatabaseHelper dbHelper = DatabaseHelper();
-    List<Map<String, dynamic>> data = [];
-    dbHelper.query('Process').then((value) => data = value);
-    return ListView.builder(
-      itemCount: data.length,
-      itemBuilder: (BuildContext context, int index) {
-        return ListTile(
-          title: Text(data[index]['processName']),
-          subtitle: Text(data[index]['processType']),
+    return ListTile(
+      title: SizedBox(
+        height: 100,
+        child: Card(
+          child: Center(
+            child: Text(batchname, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+          ),
+        ),
+      ),
+      onTap: (){
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => BatchPage(batchName: batchname),
+          ),
         );
       },
+    );
+  }
+}
+
+class ProgressPage extends StatefulWidget {
+  const ProgressPage({super.key});
+
+  @override
+  State<ProgressPage> createState() => _ProgressPageState();
+}
+
+class _ProgressPageState extends State<ProgressPage> {
+  List<Map<String, dynamic>> batches = [];
+  final dbHelper = DatabaseHelper();
+
+  @override
+  void initState() {
+    super.initState();
+    _getBatches();
+  }
+  void _getBatches() async {
+    final data = await dbHelper.query('Batch');
+    setState(() {
+      batches = data;
+    });
+  }
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder(
+      future: dbHelper.query('Batch'),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return const Center(
+            child: CircularProgressIndicator(),
+          );
+        } else if (snapshot.hasError) {
+          return const Center(
+            child: Text('Error'),
+          );
+        } else if (!snapshot.hasData) {
+          return const Center(
+            child: Text('No Data'),
+          );
+        }
+        final item = snapshot.data!;
+        return ListView.builder(
+          padding: const EdgeInsets.all(50),
+          itemBuilder: (context, index) {
+            return BatchCard(batchname: item[index]['batchName'] as String);
+          },
+          itemCount: item.length,
+        );
+      }
     );
   }
 }

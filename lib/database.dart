@@ -19,6 +19,130 @@ class DatabaseHelper {
   }
 
   Future<Database> _initDB() async {
+    String dbPath = await _getDatabasePath('starlingcycles.db');
+    bool dbExists = await databaseExists(dbPath);
+
+    if (! dbExists) {
+      await _copyDatabase(dbPath);
+    }
+    return await openDatabase(
+      dbPath,
+      onOpen: (db)async {
+        print('Opened database $dbPath');
+        await populate(db);
+      }
+    );
+  }
+  Future<String> _getDatabasePath(String dbName) async {
+    return join(await getDatabasesPath(), dbName);
+  }
+  Future<bool> databaseExists(String path) async {
+    return File(path).exists();
+  }
+  Future<void> _copyDatabase(String dbPath) async {
+    ByteData data = await rootBundle.load('assets/starlingcycles.db');
+    List<int> bytes = data.buffer.asUint8List();
+    await File(dbPath).writeAsBytes(bytes);
+  }
+  Future<void> populate(Database db) async{
+    List<Map<String, dynamic>> data = [
+      {
+      'manufactureName': 'Mitre',
+      'procedure': '1,2,3,4,5,6,7,8,9,10,11,12,13,14,15',
+    }
+    ];
+    /*for (var item in data) {
+      final mitre = await db.query('Manufacture', where: 'manufactureName = ?', whereArgs: [item['manufactureName']]);
+      if(!mitre.isNotEmpty) {
+        await db.insert('Manufacture', item);
+      }
+    }*/
+    List<Map<String, dynamic>> processes = [
+      {
+        "process_id": 1,
+        "processName": "Set Up",
+        "processType": "tick"
+      },
+      {
+        "process_id": 2,
+        "processName": "Tacking",
+        "processType": "timer"
+      },
+      {
+        "process_id": 3,
+        "processName": "Braze",
+        "processType": "timer"
+      },
+      {
+        "process_id": 4,
+        "processName": "Heat Tube Gussets",
+        "processType": "timer"
+      },
+      {
+        "process_id": 5,
+        "processName": "clean up",
+        "processType": "tick"
+      },
+      {
+        "process_id": 6,
+        "processName": "HT Ream",
+        "processType": "timer"
+      },
+      {
+        "process_id": 7,
+        "processName": "MP Ream",
+        "processType": "timer"
+      },
+      {
+        "process_id": 8,
+        "processName": "ST Ream",
+        "processType": "timer"
+      },
+      {
+        "process_id": 9,
+        "processName": "Cable Guides",
+        "processType": "timer"
+      },
+      {
+        "process_id": 10,
+        "processName": "ISCG",
+        "processType": "timer"
+      },
+      {
+        "process_id": 11,
+        "processName": "ST Shim Bond",
+        "processType": "timer"
+      },
+      {
+        "process_id": 12,
+        "processName": "ST Shim Ream",
+        "processType": "timer"
+      },
+      {
+        "process_id": 13,
+        "processName": "HT Breather Holes",
+        "processType": "timer"
+      },
+      {
+        "process_id": 14,
+        "processName": "BB Chase",
+        "processType": "timer"
+      },
+      {
+        "process_id": 15,
+        "processName": "QC",
+        "processType": "tick"
+      }
+    ];
+    for (var item in processes) {
+      final process = await db.query('Process', where: 'process_id = ?', whereArgs: [item['process_id']]);
+      if(process.isEmpty) {
+      await db.insert('Process', item);
+      }
+    }
+  }
+/*
+  Future<Database> _initDB() async {
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, 'starlingcycles.db');
 
@@ -43,17 +167,49 @@ class DatabaseHelper {
       print('Opened database {$path}');
     });
   }
-
+*/
   Future<List<Map<String, dynamic>>> query(String table) async {
     final db = await database;
     return await db.query(table);
   }
 
-  Future<int> insertItem(String table, Map<String, dynamic> data) async {
+  Future<int> insertBatch(String table, Map<String, dynamic> data) async {
     final db = await database;
-    print('Inserted into $table');
+    final exist = await db.query(table, where: 'batchName = ?', whereArgs: [data['batchName']]);
+    if (exist.isNotEmpty) {
+      return 0;
+    }
+    else {
+      print('Inserted into $table');
+      return await db.insert(table, data);
+    }
+  }
 
-    return await db.insert(table, data);
+  Future<int> insertFrame(String table, Map<String, dynamic> data) async {
+    final db = await database;
+    final exist = await db.query(table, where: 'frameNumber = ?', whereArgs: [data['frameNumber']]);
+    if (exist.isNotEmpty) {
+      return 0;
+    }
+    else {
+      print('Inserted into $table');
+      return await db.insert(table, data);
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getBatch(String table, String batch) async {
+    final db = await database;
+    return await db.query(table, where: 'batchName = ?', whereArgs: [batch]);
+  }
+
+  Future<List<Map<String, dynamic>>> getManufacture(String table, String manufacture) async {
+    final db = await database;
+    return await db.query(table, where: 'manufactureName = ?', whereArgs: [manufacture]);
+  }
+
+  Future<List<Map<String, dynamic>>> getProcess(String table, String processID) async {
+    final db = await database; 
+    return await db.query(table, where: 'process_id = ?', whereArgs: [processID]);
   }
 
   Future<List<Map<String, dynamic>>> getBatchFrame(String table, String batch) async {

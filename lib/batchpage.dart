@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:sqflite/sqflite.dart';
 import 'database.dart'; 
+import 'progresspage.dart';
 
 class Frame {
   final String frameNumber;
@@ -30,45 +31,90 @@ class BatchPage extends StatefulWidget {
 
 class _BatchPageState extends State<BatchPage> {
   final DatabaseHelper dbHelper = DatabaseHelper();
-  List<Map<String, dynamic>> _frames = [];
+  List<Map<String, dynamic>> frames = [];
+  String manufactureType = '';
+  List procedure = [];
 
   @override
   void initState() {
     super.initState();
     _queryFrames();
+    getManufactureType();
+    //getProcedure();
   }
   
   void _queryFrames() async {
     final data = await dbHelper.getBatchFrame('Frame', widget.batchName);
     setState(() {
-      _frames = data;
+      frames = data;
+    });
+  }
+
+  void getManufactureType() async {
+    final data = await dbHelper.getBatch('Batch', widget.batchName);
+    setState(() {
+      manufactureType = data[0]['manufacture'];
+    });
+  }
+
+  void getProcedure() async {
+    final data = await dbHelper.getManufacture('Manufacture', manufactureType);
+    print(data);
+    setState(() {
+      String procedureString = data [0]['procedure'];
+      procedure = procedureString.split(',');
     });
   }
 
   @override
   Widget build(BuildContext context) {
+    final String batchName = widget.batchName;
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.primary,
         title: Text(widget.batchName, style: const TextStyle(color: Colors.white)),
+        actions: [
+          Container(
+            margin: const EdgeInsets.only(right: 25),
+            child: ElevatedButton(
+              child: const Text('Start'),
+              style: ElevatedButton.styleFrom(
+                foregroundColor: Colors.white,
+                backgroundColor: Color.fromARGB(255, 152, 201, 111), 
+              //side: const BorderSide(color: Colors.white),
+              ),
+              onPressed: (){
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => ProgressPage(batchname:batchName)),
+                );
+              },),
+          )
+        ],
       ),
       body: ListView(
           padding: const EdgeInsets.all(50),
           shrinkWrap: false,
           children: [
-            FrameTable(batchName: widget.batchName),
+            Text(
+              'Manufacture Type: $manufactureType',
+            ),
+            FrameTable(batchName: widget.batchName, frames: frames),
             const SizedBox(height: 50),
             //TimerWidget(),
           ],
         ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          showDialog(
+        onPressed: () async {
+          final result = await showDialog<bool>(
             context: context, 
             builder: (BuildContext context) {
               return AddFrameForm(batchName: widget.batchName);
             },
           );
+          if (result == true) {
+            _queryFrames();
+          }
         },
         tooltip: 'Add Batch',
         backgroundColor: Theme.of(context).colorScheme.primary,
@@ -78,7 +124,7 @@ class _BatchPageState extends State<BatchPage> {
   }
 }
 
-class BatchTable extends StatefulWidget {
+/*class BatchTable extends StatefulWidget {
   List frames = [];
   //BatchTable({Key? key, this.frames = const []});
   @override
@@ -155,61 +201,57 @@ class _BatchTableState extends State<BatchTable> {
     );
   }
 }
+*/
 
 class FrameTable extends StatefulWidget {
   final String batchName;
+  final List<Map<String, dynamic>> frames;
   //late Future<List<Map<String, dynamic>>> frames;
-  FrameTable({Key? key, required this.batchName}) : super(key: key);
+  FrameTable({Key? key, required this.batchName, required this.frames}) : super(key: key);
   @override
   State<FrameTable> createState() => _FrameTableState();
 }
 class _FrameTableState extends State<FrameTable>{
   final dbHelper = DatabaseHelper();
-  late Future<List<Map<String, dynamic>>> _frames;
 
   @override
   void initState() {
     super.initState();
-    _frames = dbHelper.getBatchFrame('Frame', widget.batchName);
   }
-  
+
   @override
   Widget build(BuildContext context){
-    return FutureBuilder(
-      future: _frames, 
-      builder: (context, snapshot){
-        if (!snapshot.hasData) {
-          return const Center(
-            child: Text('No Frames'),
-          );
-        } else {
-          List<Map<String, dynamic>> frames = snapshot.data as List<Map<String, dynamic>>;
-          return DataTable(
-            columns: const [
-              DataColumn(label: Text(
-                'Frame Number',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-                ),),
-              DataColumn(label: Text(
-                'Model',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-                )),
-              DataColumn(label: Text(
-                'Size',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-                ),
-              ),
-            ], 
-            rows: frames.map(
-              (e) => DataRow(cells: [
-                DataCell(Text(e['frameNumber'])),
-                DataCell(Text(e['model'])),
-                DataCell(Text(e['size'])),
-              ])).toList(),
-          );
-        }
-      }
-    );
+    final items = widget.frames;
+    if (items.isEmpty) {
+      return const Center(
+        child: Text('No frames yet'),
+        );
+    }
+    else {
+      return DataTable(
+      columns: const [
+          DataColumn(label: Text(
+            'Frame Number',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+            ),),
+          DataColumn(label: Text(
+            'Model',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+            )),
+          DataColumn(label: Text(
+            'Size',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+            ),
+          ),
+        ], 
+        rows: items.map(
+          (e) => DataRow(cells: [
+            DataCell(Text(e['frameNumber'])),
+            DataCell(Text(e['model'])),
+            DataCell(Text(e['size'])),
+          ])).toList(),
+      );
+    }
   }
 }
 
@@ -244,13 +286,23 @@ class _AddFrameFormState extends State<AddFrameForm> {
         'size': _sizeController.text,
         'batchNumber': widget.batchName,  
       };
-      await dbHelper.insertItem('Frame', frame);
-      Navigator.of(context).pop();
+      final addedFrame = await dbHelper.insertFrame('Frame', frame);
+      if (addedFrame == 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Frame already exists')),
+        );
+      }
+      else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Frame added')),
+        );
+        Navigator.pop(context, true);
+      }
     }
   }
 
   @override
-  Widget build(BuildContext context){
+  Widget build(context){
     return AlertDialog.adaptive(
       scrollable: true,
       shape: RoundedRectangleBorder(

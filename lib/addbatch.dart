@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'batchpage.dart';
 import 'database.dart'; 
 
-const List<String> manufactureTypes = [
+/*const List<String> manufactureTypes = [
   'Mitre',
   'Add New'
-];
+];*/
 
 class Batch {
   final String batchName;
@@ -34,7 +34,7 @@ class _AddBatchFormState extends State<AddBatchForm> {
   final _batchNameController = TextEditingController();
   String? manufactureType;
   String _batchNameError = ''; 
-  Batch batch = Batch(batchName: 'M', manufactureType: '', dateCreated: DateTime.now());  
+  //Batch batch = Batch(batchName: 'M', manufactureType: '', dateCreated: DateTime.now());  
   
   @override
   void dispose() {
@@ -51,7 +51,8 @@ class _AddBatchFormState extends State<AddBatchForm> {
   void _getManufactureType() async {
     final data = await dbHelper.query('Manufacture');
     setState(() {
-      manufactureTypes = data.map((item) => item['manufactureName'] as String).toList();
+      manufactureTypes = data.map((e) => e['manufactureName'].toString()).toList();
+      print(manufactureTypes);
       if (manufactureTypes.isNotEmpty) {
         manufactureType = manufactureTypes[0];
       }
@@ -91,7 +92,13 @@ class _AddBatchFormState extends State<AddBatchForm> {
         'date_created': DateTime.now().toString(), 
       };
       print(row);
-      await dbHelper.insertItem('Batch', row);
+      final insert = await dbHelper.insertBatch('Batch', row);
+      if (insert == 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Batch already exists'))
+      );
+      }
+      else {
       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text('Batch added successfully'))
       );
@@ -99,6 +106,7 @@ class _AddBatchFormState extends State<AddBatchForm> {
         MaterialPageRoute(builder: (context) => BatchPage(batchName: row['batchName'])) 
       );
       _batchNameController.clear();
+    }
     }
   }
   @override
@@ -150,8 +158,8 @@ class _AddBatchFormState extends State<AddBatchForm> {
                   value: manufactureType,
                   items: manufactureTypes.map((String value) {
                     return DropdownMenuItem(
-                      value: manufactureType,
-                      child: Text(manufactureType.toString()),
+                      value: value,
+                      child: Text(value.toString()),
                     );
                   }).toList(),
                   onChanged: (String? value) {
@@ -178,3 +186,4 @@ class _AddBatchFormState extends State<AddBatchForm> {
     );
   }
 }
+
