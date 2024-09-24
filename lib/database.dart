@@ -173,9 +173,38 @@ class DatabaseHelper {
     return await db.query(table);
   }
 
+  Future<int> insertManufacture(String table, Map<String, dynamic> data) async {
+    final db = await database;
+    final exist = await db.query(table, where: 'manufactureName = ?', whereArgs: [data['manufactureName']]);
+    if (exist.isNotEmpty) {
+      return 0;
+    }
+    else {
+      print('Inserted into $table');
+      return await db.insert(table, data);
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> queryBatches(String status) async {
+    final db = await database;
+    return await db.query('Batch', where: 'Status = ?', whereArgs: [status]);
+  }
+
   Future<int> insertBatch(String table, Map<String, dynamic> data) async {
     final db = await database;
     final exist = await db.query(table, where: 'batchName = ?', whereArgs: [data['batchName']]);
+    if (exist.isNotEmpty) {
+      return 0;
+    }
+    else {
+      print('Inserted into $table');
+      return await db.insert(table, data);
+    }
+  }
+
+  Future<int> insertProcess(String table, Map<String, dynamic> data) async {
+    final db = await database;
+    final exist = await db.query(table, where: 'processName = ?', whereArgs: [data['processName']]);
     if (exist.isNotEmpty) {
       return 0;
     }
@@ -212,8 +241,64 @@ class DatabaseHelper {
     return await db.query(table, where: 'process_id = ?', whereArgs: [processID]);
   }
 
+  Future<List<Map<String, dynamic>>> getProcessID(String table, String processName) async {
+    final db = await database;
+    return await db.query(table, where: 'processName = ?', whereArgs: [processName]);
+  }
+
   Future<List<Map<String, dynamic>>> getBatchFrame(String table, String batch) async {
     final db = await database;
     return await db.query(table, where: 'batchNumber = ?', whereArgs: [batch]);
+  }
+
+  Future<dynamic>addProcesses(String processName, String processType) async {
+    final db = await database;
+    List columns = await db.rawQuery('PRAGMA table_info(Frame)');
+    print(columns);
+    processName = processName.replaceAll(' ', '');
+    for (var column in columns) {
+      if (column['name'] == processName) {
+        return 1;
+      }
+    }
+    if (processType == 'timer' ){
+      print('Added $processName $processType to Frames');
+      return await db.execute(
+        "ALTER TABLE Frame ADD COLUMN $processName TIME"
+      );
+    }
+    else {
+      print('Added $processName $processType to Frames');
+      return await db.execute(
+        "ALTER TABLE Frame ADD $processName BOOLEAN DEFAULT FALSE"
+      );
+    
+    }
+  }
+
+  Future<dynamic> updateProcessTick(String frameNumber, String processName, bool value) async {
+    final db = await database;
+    return await db.update('Frame', {processName: value}, where: 'frameNumber = ?', whereArgs: [frameNumber]);
+  }
+
+  Future<dynamic> updateProcessTimer(String frameNumber, String processName, String value) async {
+    print('Updating $processName to $value');
+    final db = await database;
+    return await db.update('Frame', {processName: value}, where: 'frameNumber = ?', whereArgs: [frameNumber]);
+  } 
+
+  Future<dynamic> deleteBatch(String table, String batch) async {
+    final db = await database;
+    return await db.delete(table, where: 'batchName = ?', whereArgs: [batch]);
+  }
+
+  Future<dynamic> deleteFrame(String table, String frame) async {
+    final db = await database;
+    return await db.delete(table, where: 'frameNumber = ?', whereArgs: [frame]);
+  }
+
+  Future<dynamic> updateStatus(String batch, String status) async {
+    final db = await database;
+    return await db.update('Batch', {'Status': status}, where: 'batchName = ?', whereArgs: [batch]);
   }
 }

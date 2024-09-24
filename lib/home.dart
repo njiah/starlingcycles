@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart'; 
-
 import 'addbatch.dart';
 
 class HomePage extends StatefulWidget {
@@ -57,10 +56,23 @@ class HeadingBox extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    double width = MediaQuery.of(context).size.width;
     return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.5),
+            spreadRadius: 2,
+            blurRadius: 7,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
       padding: const EdgeInsets.all(20),
-      color: Colors.grey[200],
-      child: Row(
+      child: width > 400
+      ? Row(
         children: <Widget>[
           Container(
             padding: const EdgeInsets.all(10),
@@ -73,7 +85,29 @@ class HeadingBox extends StatelessWidget {
             child: Text('${dateformat.format(datenow)}    ${timeformat.format(timenow)}', style: const TextStyle(fontSize: 18)),
           ),
         ]
+      )
+      : Column(
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                child: Text(greeting, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+              ),
+            ],
+            ),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                //color: Colors.grey[300],
+                child: Text('${dateformat.format(datenow)}    ${timeformat.format(timenow)}', style: const TextStyle(fontSize: 18)),
+              ),
+            ],
+          ),
+        ],
       ),
+        
     );
   }
 }

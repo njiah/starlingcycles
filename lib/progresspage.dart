@@ -1,6 +1,32 @@
-import 'batchpage.dart';
+//import 'package:to_csv/to_csv.dart' as exportcsv;
+import 'package:sqflite/sqflite.dart';
+
 import 'database.dart';
+import 'dart:async';
+import 'package:intl/intl.dart';
 import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:csv/csv.dart';
+import 'dart:io';
+import 'package:permission_handler/permission_handler.dart'; 
+import 'package:share_plus/share_plus.dart'; 
+
+class CheckboxProcess {
+  final String frameNumber;
+  bool isChecked;
+
+  CheckboxProcess({
+    required this.frameNumber,
+    this.isChecked = false,
+  });
+
+  Map<String, dynamic> toMap() {
+    return {
+      'frameNumber': frameNumber,
+      'isChecked': isChecked,
+    };
+  }
+}
 
 class ProgressPage extends StatefulWidget {
   final String batchname;
@@ -15,12 +41,15 @@ class _ProgressPageState extends State<ProgressPage> {
   late Future<List<Map<String, dynamic>>> frames;
   List procedure = [];
   List processes = [];
+  List processTypes = [];
+  String csv = '';
   
   @override
   void initState(){
     super.initState();  
     frames = dbHelper.getBatchFrame('Frame', widget.batchname);
     getProcesses();
+    //addProcess();
   }
   void getProcesses() async {
     final batch = await dbHelper.getBatch('Batch', widget.batchname);
@@ -31,10 +60,68 @@ class _ProgressPageState extends State<ProgressPage> {
       String process = procedure[i];
       final data = await dbHelper.getProcess('Process', process);
       processes.add(data[0]['processName']);
+      processTypes.add(data[0]['processType']);
+      await dbHelper.addProcesses(processes[i], processTypes[i]); 
     }
     setState(() {
       processes = processes;
+      processTypes = processTypes;
     });
+  }
+
+  void addProcess() async {
+    for (int i = 0; i < processes.length; i++) {
+      await dbHelper.addProcesses(processes[i], processTypes[i]); 
+    }
+  }
+
+  Future<dynamic> generateCSV() async{
+    /*List<String> headers = [];
+    headers.add('Frame Number');
+    for (int i = 0; i < processes.length; i++) {
+      headers.add(processes[i]);
+    }*/
+    final frames = await dbHelper.getBatchFrame('Frame', widget.batchname);
+    List<List<dynamic>> rows = [];
+    if (frames.isNotEmpty){
+      rows.add(frames.first.keys.toList());
+    }
+    for (var row in frames){
+      rows.add(row.values.toList());
+    }
+    /*for (int i = 0; i < frames.length; i++) {
+      List<String> row = [];
+      for (int j = 0; j < processes.length; j++) {
+        String process = processes[j].replaceAll(' ', '');
+        row.add(frames[i][process].toString());
+      }
+      rows.add(row);
+    }*/
+    String csv = const ListToCsvConverter().convert(rows);
+    print(csv);
+    return csv;
+  }
+
+  Future<void> saveCSV(String csv) async {
+    try{
+      final directory = await getApplicationDocumentsDirectory();
+      final path = '${directory.path}/${widget.batchname}.csv';
+      final file = File(path);  
+      await file.writeAsString(csv);
+      print('CSV saved at $path');
+    }
+    catch(e){
+      print('Error: $e');
+    }
+  }
+
+  Future<void> requestPermission() async {
+    if (await Permission.storage.request().isGranted) {
+      print('Permission Granted');
+    }
+    else {
+      print('Permission Denied');
+    }
   }
     
   @override
@@ -42,24 +129,47 @@ class _ProgressPageState extends State<ProgressPage> {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.primary,
-        title: Text(widget.batchname, style: TextStyle(color: Colors.white)),
-        actions: [],
+        title: Text(widget.batchname, style: const TextStyle(color: Colors.white)),
+        actions: [
+          Container(
+            margin: const EdgeInsets.only(right: 10),
+            child: TextButton(
+              onPressed: () {
+                generateCSV().then((value) => saveCSV(csv));
+                showDialog(
+                  context: context,
+                  builder: (BuildContext context){
+                    return AlertDialog.adaptive(
+                      scrollable: true,
+                      title: const Text('Export CSV'),
+                      content: const Text("Do you want to export the CSV file?"),
+                      actions: [
+                        TextButton(
+                          onPressed: () async{
+                            final directory = await getApplicationDocumentsDirectory();
+                            final path = '${directory.path}/${widget.batchname}.csv';
+                            Share.shareXFiles([XFile(path)], text: 'CSV file for ${widget.batchname}'); 
+                            Navigator.of(context).pop();
+                          }, 
+                          child: const Text('Share'),
+                        ),
+                        TextButton(
+                          onPressed: (){
+                            Navigator.of(context).pop();
+                          }, 
+                          child: const Text('Cancel'),
+                        ),
+                      ],
+                    );
+                  },
+                );
+              }, 
+              child: const Text('Export CSV', style: TextStyle(color: Colors.white)),
+              )
+            ),
+        ],
         ),
-        body: ProgressTab(batchName: widget.batchname, processes: processes,),
-        /*ListView(
-          padding: const EdgeInsets.all(50),
-          shrinkWrap: false,
-          children: [
-            const SizedBox(height: 50),
-            //Text('Manufacture Type: ${widget.manufactureType}'),
-            const SizedBox(height: 50),
-            Text('Procedure: ${procedure}'),
-            const SizedBox(height: 50),
-            Text('Processes: ${processes}'),
-            const SizedBox(height: 50),
-            ProgressTab(batchName: widget.batchname, processes: processes,),
-          ],
-        ),*/
+        body: ProgressTab(batchName: widget.batchname, processes: processes, processTypes: processTypes),
         );
   }
 }
@@ -67,7 +177,8 @@ class _ProgressPageState extends State<ProgressPage> {
 class ProgressTab extends StatefulWidget {
   final String batchName;
   final List processes;
-  const ProgressTab({Key? key, required this.batchName, required this.processes}) : super(key: key);
+  final List processTypes;
+  const ProgressTab({super.key, required this.batchName, required this.processes, required this.processTypes});
 
   @override
   State<ProgressTab> createState() => _ProgressTabState();
@@ -76,7 +187,12 @@ class ProgressTab extends StatefulWidget {
 class _ProgressTabState extends State<ProgressTab> {
 
   final dbHelper = DatabaseHelper();
-  List<Map<String, dynamic>> frames = [];
+  List frames = [];
+  List processes = [];  
+  String time = '00:00:00';
+  Map<String, bool> checkAll = {};
+  Map<String, Map<String, bool>> checked = {};
+  Map<String, Map<String, bool>> expanded = {}; 
 
   @override
   void initState(){
@@ -86,13 +202,32 @@ class _ProgressTabState extends State<ProgressTab> {
 
   void _getFrames() async {
     final data = await dbHelper.getBatchFrame('Frame', widget.batchName);
+    final processTypes = await dbHelper.query('Process'); 
     setState(() {
       frames = data;
+      for (int i = 0; i < processTypes.length; i++) {
+        if (processTypes[i]['processType'] == 'tick') {
+          String processName = processTypes[i]['processName'];
+          processName = processName.replaceAll(' ', '');
+          checkAll[processName] = false;
+          checked[processTypes[i]['processName']] = {for (var frame in frames) frame['frameNumber']: frame[processName]== 1};
+        }
+        else {
+          String processName = processTypes[i]['processName'];
+          processName = processName.replaceAll(' ', '');
+          expanded[processName] = {for (var frame in frames) frame['frameNumber']: frame[processName] == false};
+        }
+      }
     });
+  }
+
+  void updateProcess(String frameNumber, String process, bool value) async {
+    await dbHelper.updateProcessTick(frameNumber, process, value);
   }
 
   @override
   Widget build(BuildContext context) {
+    processes = [for (int i = 0; i < widget.processes.length; i++) widget.processes[i].replaceAll(' ', '')];  
     return DefaultTabController(
       length: widget.processes.length,
       child: Column(
@@ -114,7 +249,7 @@ class _ProgressTabState extends State<ProgressTab> {
                     for (int i = 0; i < widget.processes.length; i++)
                       Tab(
                         child: Text(
-                          widget.processes[i],
+                          widget.processes[i].toUpperCase(),
                           style: const TextStyle(color: Colors.white),
                         )
                       ),
@@ -126,24 +261,296 @@ class _ProgressTabState extends State<ProgressTab> {
           Expanded(
             child: TabBarView(
               children: [
-                for (int i = 0; i < widget.processes.length; i++)
-                  ListView.separated(
-                    padding: const EdgeInsets.only(top: 10, left: 200, right: 200),
-                    separatorBuilder: (BuildContext context, int index) => const Divider(),  
-                    itemCount: frames.length,
-                    itemBuilder: (context, index){
-                      return ListTile(
-                        onTap: () {},
-                        title: Text("${frames[index]['frameNumber']}"),
-                        trailing: const Icon(Icons.check),
-                      );
-                    }, 
+                for(int i = 0; i < widget.processes.length; i++)
+                  Column(
+                    children: [
+                      Expanded(
+                        child: ListView.separated(
+                          padding: const EdgeInsets.only(top:20, left: 100, right: 100),
+                          separatorBuilder: (BuildContext context, int index) => const Divider(),  
+                          itemCount: frames.length,
+                          itemBuilder: (context, index){
+                            String time = frames[index][processes[i]].toString() == 'null' ? '00:00:00' : frames[index][processes[i]].toString();
+                            if (widget.processTypes[i] == 'timer'){
+                            return Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: Colors.grey[200],
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: ExpansionTile(
+                                title: Text("${frames[index]['frameNumber']}", style: const TextStyle(fontWeight: FontWeight.bold)),
+                                leading: const Icon(Icons.timer),
+                                subtitle: expanded[processes[i]]![frames[index]['frameNumber']] == true
+                                ? TimerClock(frameNumber: frames[index]['frameNumber'], processName: processes[i]) 
+                                : Text(time),
+                                onExpansionChanged: (bool? expand) async {
+                                  setState(() {
+                                    expanded[processes[i]]![frames[index]['frameNumber']] = expand!;
+                                  });
+                                  frames = await dbHelper.getBatchFrame('Frame', widget.batchName);
+                                },
+                                /*children: [
+                                  TimerClock(frameNumber: frames[index]['frameNumber'], processName: processes[i]),
+                                ],*/
+                                ),
+                            );
+                            }
+                            else {
+                              return Container(
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                color: Colors.grey[200],
+                                borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: CheckboxListTile(
+                                  title: Text("${frames[index]['frameNumber']}", style: const TextStyle(fontWeight: FontWeight.bold)),
+                                  //subtitle: Text(frames[index][processes[i]].toString()),
+                                  value: checked[widget.processes[i]]![frames[index]['frameNumber']],   
+                                  onChanged: (bool? value) {
+                                      setState(() {
+                                        checked[widget.processes[i]]![frames[index]['frameNumber']] = value!;
+                                        updateProcess(frames[index]['frameNumber'], processes[i], value);
+                                        if (checked[widget.processes[i]]!.values.every((element) => element == true)) {
+                                          checkAll[processes[i]] = true;
+                                        }
+                                      }
+                                      );
+                                  },
+                                ),
+                              );
+                              }
+                            }
+                        ),
+                      ),
+                      if (widget.processTypes[i] == 'tick')
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 100, vertical: 10), 
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Color.fromARGB(255, 229, 227, 223),
+                          ),
+                          onPressed: (){
+                            setState(() {
+                              print(checkAll);
+                              checkAll[processes[i]] = !checkAll[processes[i]]!;
+                              for (int j = 0; j < frames.length; j++) {
+                                checked[widget.processes[i]]![frames[j]['frameNumber']] = checkAll[processes[i]]!;
+                                updateProcess(frames[j]['frameNumber'], processes[i], checkAll[processes[i]]!);
+                              }
+                            });
+                          }, 
+                          child: Text(checkAll[processes[i]]==true ? 'Deselect All' : 'Select All'),
+                        ),
+                      ),
+                    ],
                   ),
               ],
             ),
-          )
+          ),
         ],
       ),
     );
   }
 }
+
+class TimerClock extends StatefulWidget {
+  final String frameNumber;
+  final String processName;
+  TimerClock({Key? key, required this.frameNumber, required this.processName}) : super(key: key);
+
+  @override
+  State<TimerClock> createState() => _TimerClockState();
+}
+
+class _TimerClockState extends State<TimerClock> {
+  //late AnimationController controller;
+  int _seconds = 0;
+  Timer? _timer;
+  bool _isActive = false;
+  bool selected = false;  
+  final dbHelper = DatabaseHelper();
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+  void startTimer() {
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      setState(() {
+        _seconds++;
+      });
+    });
+    setState(() {
+      _isActive = true;
+    });
+  }
+  void stopTimer() {
+    _timer?.cancel();
+    setState((){
+      _seconds = 0;
+      _isActive = false;
+    });
+  }
+  void pauseTimer() {
+    if (!_isActive) return;
+    _timer?.cancel();
+    setState(() {
+      _isActive = false;
+    });
+  }
+
+  void showdialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Timer'),
+          content: const Text('Process Time has been updated'),
+          actions: [
+            TextButton(
+              onPressed: (){
+                Navigator.of(context).pop();
+              }, 
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      }
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    String formattedTime = DateFormat('HH:mm:ss').format(DateTime.utc(0, 0, 0, 0, 0, _seconds));
+    return Column(
+          children: [
+            Text(formattedTime, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                IconButton.filledTonal(
+                  isSelected: selected,
+                  onPressed: (){
+                    if(selected){
+                      pauseTimer();
+                    }
+                    else {
+                      startTimer();
+                    }
+                    setState(() {
+                      selected = !selected;
+                    });
+                  }, 
+                  icon: const Icon(Icons.play_arrow),
+                  selectedIcon: const Icon(Icons.pause),
+                ),
+                const SizedBox(width: 20),
+                ElevatedButton(
+                  onPressed: (){
+                    stopTimer();
+                    setState(() {
+                      selected = false;
+                    });
+                  }, 
+                  child: const Text('Reset'),
+                ),
+                const SizedBox(width: 20),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                  ),
+                  child: const Text('Done', style: TextStyle(color: Colors.white),),
+                  onPressed: (){
+                    pauseTimer();
+                    setState(() {
+                      selected = false;
+                    });
+                    dbHelper.updateProcessTimer(widget.frameNumber, widget.processName, formattedTime);
+                    showdialog(context); 
+                  },
+                )
+              ],
+            ),
+          ],
+        
+      );
+  }
+}
+
+class ExportCSV extends StatefulWidget {
+  final Future<dynamic> data;
+  const ExportCSV({super.key, required this.data});
+
+  @override
+  State<ExportCSV> createState() => _ExportCSVState();
+}
+class _ExportCSVState extends State<ExportCSV> {
+  final dbHelper = DatabaseHelper();
+  List<List<dynamic>> table = [];
+  @override
+  void initState(){
+    super.initState();
+    getCSV();
+  }
+  void exportCSV() async {
+    final csv = await widget.data;
+    final status = await Permission.storage.status;
+    if (!status.isGranted) {
+      await Permission.storage.request();
+    }
+    final directory = await getExternalStorageDirectory();
+    final path = directory!.path;
+    final file = File('$path/Export.csv');
+    file.writeAsString(csv);
+  }
+  void getCSV() async {
+    table = const CsvToListConverter().convert(await widget.data);
+    setState(() {
+      table = table;
+    });
+  }
+  
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog.adaptive(
+      title: const Text('Export CSV'),
+      content: Container(
+        child: DataTable(
+          columns: [
+            for (int i = 0; i < table.length; i++)
+              DataColumn(
+                label: Text(table[0][i].toString()),
+              ),
+            ],
+          rows: [
+            DataRow(
+              cells: [
+                for (int i = 0; i < table[1].length; i++)
+                  DataCell(
+                    Text(table[1][i].toString()),
+                  ),
+              ],
+            ),
+            ],
+          ),
+      ),
+      actions: [
+        TextButton( 
+          onPressed: () {
+
+          },
+          child: const Text('Save'),
+        ),
+        TextButton(
+          onPressed: (){
+            Navigator.of(context).pop();
+          }, 
+          child: const Text('Cancel'),
+        ),
+      ],
+    );
+  }
+}
+  

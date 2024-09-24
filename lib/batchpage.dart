@@ -1,5 +1,6 @@
 import 'dart:ffi';
 import 'dart:async';
+import 'package:flutter/services.dart';
 import 'home.dart';
 import 'addbatch.dart';
 import 'package:flutter/material.dart'; 
@@ -8,19 +9,6 @@ import 'package:sqflite/sqflite.dart';
 import 'database.dart'; 
 import 'progresspage.dart';
 
-class Frame {
-  final String frameNumber;
-  final String model;
-  final String size;
-  final DateTime dateCreated;
-
-  Frame({
-    required this.frameNumber,
-    required this.model,
-    required this.size,
-    required this.dateCreated,
-  });
-}
 
 class BatchPage extends StatefulWidget {
   final String batchName;
@@ -34,6 +22,8 @@ class _BatchPageState extends State<BatchPage> {
   List<Map<String, dynamic>> frames = [];
   String manufactureType = '';
   List procedure = [];
+  bool empty = true;
+  String status = ''; 
 
   @override
   void initState() {
@@ -44,10 +34,21 @@ class _BatchPageState extends State<BatchPage> {
   }
   
   void _queryFrames() async {
+    final batch = await dbHelper.getBatch('Batch', widget.batchName);
+    
     final data = await dbHelper.getBatchFrame('Frame', widget.batchName);
-    setState(() {
-      frames = data;
-    });
+    if (data.isNotEmpty) {
+      setState(() {
+        status = batch[0]['Status'];
+        frames = data;
+        empty = false;
+      });
+    } 
+    else{
+      setState(() {
+        empty = true;
+      });
+    }
   }
 
   void getManufactureType() async {
@@ -59,11 +60,14 @@ class _BatchPageState extends State<BatchPage> {
 
   void getProcedure() async {
     final data = await dbHelper.getManufacture('Manufacture', manufactureType);
-    print(data);
     setState(() {
       String procedureString = data [0]['procedure'];
       procedure = procedureString.split(',');
     });
+  }
+
+  void _deleteFrame(String frameNumber) async {
+    await dbHelper.deleteFrame('Frame', frameNumber);
   }
 
   @override
@@ -73,35 +77,97 @@ class _BatchPageState extends State<BatchPage> {
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.primary,
         title: Text(widget.batchName, style: const TextStyle(color: Colors.white)),
-        actions: [
+        actions: status != 'Completed' ? [
           Container(
             margin: const EdgeInsets.only(right: 25),
             child: ElevatedButton(
-              child: const Text('Start'),
               style: ElevatedButton.styleFrom(
                 foregroundColor: Colors.white,
                 backgroundColor: Color.fromARGB(255, 152, 201, 111), 
               //side: const BorderSide(color: Colors.white),
               ),
-              onPressed: (){
+              onPressed: empty ? null : 
+              (){
+                if (status == 'Not Started') {
+                  dbHelper.updateStatus(widget.batchName, 'In Progress');
+                }
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (context) => ProgressPage(batchname:batchName)),
                 );
-              },),
+              },
+              child: status == 'In Progress' ? const Text('Continue') : const Text('Start'),
+            ),
           )
-        ],
+        ] : null,
       ),
       body: ListView(
           padding: const EdgeInsets.all(50),
           shrinkWrap: false,
           children: [
-            Text(
-              'Manufacture Type: $manufactureType',
+            Container(
+              padding: const EdgeInsets.all(40),
+              decoration: BoxDecoration(
+                color: Colors.grey[200],
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Center(
+                child: Text(
+                  'Manufacture Type: $manufactureType',
+                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+              ),
             ),
-            FrameTable(batchName: widget.batchName, frames: frames),
+            Container(
+              constraints: const BoxConstraints(minHeight: 200),
+              margin: const EdgeInsets.only(top: 20), 
+              padding: const EdgeInsets.only(top: 30, bottom: 40, left: 20, right: 20), 
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.grey),
+                borderRadius: BorderRadius.circular(10),
+                color: Colors.grey[200],
+              ),
+              child: empty
+              ? const Center(
+                child: Text('No frames yet'),
+              )
+              : DataTable(
+              columns: const [
+                DataColumn(label: Text(
+                  'Frame Number',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                  ),),
+                DataColumn(label: Text(
+                  'Model',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                  )),
+                DataColumn(label: Text(
+                  'Size',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                  ),
+                ),
+                DataColumn(label: Text(''))
+              ], 
+              rows: frames.map(
+                (e) => DataRow(cells: [
+                  DataCell(Text(e['frameNumber'])),
+                  DataCell(Text(e['model'])),
+                  DataCell(Text(e['size'])),
+                  DataCell(
+                    Container(
+                      alignment: Alignment.centerRight,
+                      child: IconButton(
+                        icon: const Icon(Icons.delete),
+                        onPressed: (){
+                          _deleteFrame(e['frameNumber']);
+                          _queryFrames();
+                          frames.remove(e);
+                        },),
+                    ))
+                ])).toList(),
+              )
+            ),
             const SizedBox(height: 50),
-            //TimerWidget(),
           ],
         ),
       floatingActionButton: FloatingActionButton(
@@ -116,7 +182,7 @@ class _BatchPageState extends State<BatchPage> {
             _queryFrames();
           }
         },
-        tooltip: 'Add Batch',
+        tooltip: 'Add a new Frame',
         backgroundColor: Theme.of(context).colorScheme.primary,
         child: const Icon(Icons.add, color: Colors.white, size:28),
       ),
@@ -203,29 +269,42 @@ class _BatchTableState extends State<BatchTable> {
 }
 */
 
-class FrameTable extends StatefulWidget {
+/*class FrameTable extends StatefulWidget {
   final String batchName;
-  final List<Map<String, dynamic>> frames;
-  //late Future<List<Map<String, dynamic>>> frames;
+  List<Map<String, dynamic>> frames = []; 
   FrameTable({Key? key, required this.batchName, required this.frames}) : super(key: key);
   @override
   State<FrameTable> createState() => _FrameTableState();
 }
 class _FrameTableState extends State<FrameTable>{
   final dbHelper = DatabaseHelper();
+  List<Map<String, dynamic>> frames = [];
 
   @override
   void initState() {
     super.initState();
+    _getFrames();
+  }
+
+  void _deleteFrame(String frameNumber) async {
+    await dbHelper.deleteFrame('Frame', frameNumber);
+  }
+
+  void _getFrames() async {
+    final data = await dbHelper.getBatchFrame('Frame', widget.batchName);
+    setState(() {
+      frames = data;
+    });
   }
 
   @override
   Widget build(BuildContext context){
     final items = widget.frames;
     if (items.isEmpty) {
+
       return const Center(
-        child: Text('No frames yet'),
-        );
+          child: Text('No frames yet'),
+      );
     }
     else {
       return DataTable(
@@ -243,17 +322,28 @@ class _FrameTableState extends State<FrameTable>{
             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
             ),
           ),
+          DataColumn(label: Text(''))
         ], 
         rows: items.map(
           (e) => DataRow(cells: [
             DataCell(Text(e['frameNumber'])),
             DataCell(Text(e['model'])),
             DataCell(Text(e['size'])),
+            DataCell(
+              Container(
+                alignment: Alignment.centerRight,
+                child: IconButton(
+                  icon: const Icon(Icons.delete),
+                  onPressed: (){
+                    _deleteFrame(e['frameNumber']);
+                    _getFrames();
+                  },),
+              ))
           ])).toList(),
       );
     }
   }
-}
+}*/
 
 class AddFrameForm extends StatefulWidget{
   final String batchName;
@@ -269,6 +359,8 @@ class _AddFrameFormState extends State<AddFrameForm> {
   final _frameNumberController = TextEditingController();
   final _modelController = TextEditingController();
   final _sizeController = TextEditingController();
+  String error = '';
+  String frameError = '';
 
   @override
   void dispose() {
@@ -276,6 +368,24 @@ class _AddFrameFormState extends State<AddFrameForm> {
     _modelController.dispose();
     _sizeController.dispose();
     super.dispose();
+  }
+
+  void _validateFrame(String value){
+    if (value.isEmpty) {
+      setState(() {
+        error = 'Please enter a frame number';
+      });
+    }
+    else if (!RegExp(r'^[a-zA-Z0-9]+$').hasMatch(value)) {
+      setState(() {
+        error = 'Frame number must be alphanumeric';
+      });
+    }
+    else {
+      setState(() {
+        error = '';
+      });
+    }
   }
   
   void _addFrame() async {
@@ -288,9 +398,9 @@ class _AddFrameFormState extends State<AddFrameForm> {
       };
       final addedFrame = await dbHelper.insertFrame('Frame', frame);
       if (addedFrame == 0) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Frame already exists')),
-        );
+        setState(() {
+          frameError = 'Frame already exists!';
+        });
       }
       else {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -302,37 +412,69 @@ class _AddFrameFormState extends State<AddFrameForm> {
   }
 
   @override
-  Widget build(context){
+  Widget build(BuildContext context){
     return AlertDialog.adaptive(
       scrollable: true,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(10),
       ),
-      title: const Text('Add Frame'),
+      title: frameError.isEmpty 
+      ? const Text('Add Frame') 
+      : Text(frameError, style: const TextStyle(color: Colors.red)),
       content: Container(
         width: 400,
         padding: const EdgeInsets.all(8),
         child: Form(
           key: _formKey,
           child: Column(
-            children: <Widget>[
-              TextField(
+            children: [
+              TextFormField(
                 controller: _frameNumberController,
                 decoration: const InputDecoration(
                   labelText: 'Frame Number',
+                  hintText: 'e.g. M879',
                 ),
+                validator: (value){
+                  if (value == null || value.isEmpty) {
+                    return 'Please enter a frame number';
+                  }
+                  else if (!RegExp(r'^[A-Z0-9]+$').hasMatch(value)) {
+                    return 'Frame number must be alphanumeric';
+                  }
+                  return null;
+                },
+                onChanged: _validateFrame,
               ),
-              TextField(
+              TextFormField(
                 controller: _modelController,
+                inputFormatters: <TextInputFormatter> [UpperCaseTextFormatter()], 
                 decoration: const InputDecoration(
                   labelText: 'Model',
+                  hintText: "e.g. Murmur",
                 ),
+                validator: (value){
+                  if (value == null || value.isEmpty) {
+                    return 'Please enter a model';
+                  }
+                  return null;
+                },
               ),
-              TextField(
+              TextFormField(
                 controller: _sizeController,
+                inputFormatters: <TextInputFormatter>[SizeTextFormatter()],
                 decoration: const InputDecoration(
                   labelText: 'Size',
+                  hintText: 'e.g. L',
                 ),
+                validator: (value){
+                  if (value == null || value.isEmpty) {
+                    return 'Please enter a size';
+                  }
+                  else if (!RegExp(r'^[A-Z]{1,2}$').hasMatch(value)){
+                    return 'Please enter a valid size';
+                  }
+                  return null;
+                },
               ),
             ],
           ),
@@ -356,7 +498,33 @@ class _AddFrameFormState extends State<AddFrameForm> {
   }
 }
 
-class TimerWidget extends StatefulWidget {
+class UpperCaseTextFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
+    return TextEditingValue(
+      text: capitalize(newValue.text),
+      selection: newValue.selection,
+    );
+  }
+  String capitalize(String value) {
+    if(value.trim().isEmpty) {
+      return '';
+    }
+    return value[0].toUpperCase() + value.substring(1).toLowerCase(); 
+  }
+}
+
+class SizeTextFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
+    return TextEditingValue(
+      text: newValue.text.toUpperCase(),
+      selection: newValue.selection,
+    );
+  }
+}
+
+/*class TimerWidget extends StatefulWidget {
   //const TimerWidget({Key? key}) : super(key: key);
   @override
   State<TimerWidget> createState() => _TimerWidgetState();
@@ -449,4 +617,4 @@ class _TimerWidgetState extends State<TimerWidget>{
       ],
     );
   }
-}
+}*/
