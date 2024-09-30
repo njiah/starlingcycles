@@ -1,13 +1,12 @@
 //import 'package:to_csv/to_csv.dart' as exportcsv;
-import 'package:sqflite/sqflite.dart';
-
+import 'dart:convert';
+import 'dart:io';
 import 'database.dart';
 import 'dart:async';
 import 'package:intl/intl.dart';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:csv/csv.dart';
-import 'dart:io';
 import 'package:permission_handler/permission_handler.dart'; 
 import 'package:share_plus/share_plus.dart'; 
 
@@ -75,12 +74,8 @@ class _ProgressPageState extends State<ProgressPage> {
     }
   }
 
-  Future<dynamic> generateCSV() async{
-    /*List<String> headers = [];
-    headers.add('Frame Number');
-    for (int i = 0; i < processes.length; i++) {
-      headers.add(processes[i]);
-    }*/
+  Future<void> generateCSV() async{
+    
     final frames = await dbHelper.getBatchFrame('Frame', widget.batchname);
     List<List<dynamic>> rows = [];
     if (frames.isNotEmpty){
@@ -89,17 +84,16 @@ class _ProgressPageState extends State<ProgressPage> {
     for (var row in frames){
       rows.add(row.values.toList());
     }
-    /*for (int i = 0; i < frames.length; i++) {
-      List<String> row = [];
-      for (int j = 0; j < processes.length; j++) {
-        String process = processes[j].replaceAll(' ', '');
-        row.add(frames[i][process].toString());
-      }
-      rows.add(row);
-    }*/
     String csv = const ListToCsvConverter().convert(rows);
+    //print(csv);
+    
+    final String directory = (await getApplicationDocumentsDirectory()).path;
+    final String path = '$directory/${widget.batchname}.csv';
+    final File file = File(path);
+    await file.writeAsString(csv);
     print(csv);
-    return csv;
+    print('CSV saved at $path');
+
   }
 
   Future<void> saveCSV(String csv) async {
@@ -135,7 +129,7 @@ class _ProgressPageState extends State<ProgressPage> {
             margin: const EdgeInsets.only(right: 10),
             child: TextButton(
               onPressed: () {
-                generateCSV().then((value) => saveCSV(csv));
+                generateCSV();
                 showDialog(
                   context: context,
                   builder: (BuildContext context){
@@ -148,7 +142,14 @@ class _ProgressPageState extends State<ProgressPage> {
                           onPressed: () async{
                             final directory = await getApplicationDocumentsDirectory();
                             final path = '${directory.path}/${widget.batchname}.csv';
+                            final data = File(path).openRead();
+                            print(path);
+                            data.transform(utf8.decoder).transform(const LineSplitter()).forEach((element) {
+                              print(element);
+                            });
+                            //print(data);
                             Share.shareXFiles([XFile(path)], text: 'CSV file for ${widget.batchname}'); 
+                            dbHelper.updateStatus(widget.batchname, 'Completed');
                             Navigator.of(context).pop();
                           }, 
                           child: const Text('Share'),
@@ -468,7 +469,7 @@ class _TimerClockState extends State<TimerClock> {
                       selected = false;
                     });
                     dbHelper.updateProcessTimer(widget.frameNumber, widget.processName, formattedTime);
-                    showdialog(context); 
+                    //showdialog(context); 
                   },
                 )
               ],

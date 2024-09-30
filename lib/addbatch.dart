@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'batchpage.dart';
 import 'database.dart'; 
+import 'package:flutter/services.dart';
 
-/*const List<String> manufactureTypes = [
-  'Mitre',
-  'Add New'
-];*/
 
 class Batch {
   final String batchName;
@@ -86,13 +84,30 @@ class _AddBatchFormState extends State<AddBatchForm> {
 
   void insertBatch() async{
     if(_formKey.currentState!.validate()){
+      String formattedDate = DateFormat('dd-MM-yyyy').format(DateTime.now());
       Map<String, dynamic> row = {
         'batchName': _batchNameController.text,
         'manufacture': manufactureType,
-        'date_created': DateTime.now().toString(), 
+        'dateCreated': formattedDate, 
       };
-      print(row);
+      final setup = {
+        {
+        'frameNumber': 'SETUP',
+        'model': ' ',
+        'size' : ' ',
+        'batchNumber': row['batchName'],
+        },
+        {
+        'frameNumber': 'ALL FRAMES',
+        'model': ' ',
+        'size' : ' ',
+        'batchNumber': row['batchName'],
+        },
+      };
       final insert = await dbHelper.insertBatch('Batch', row);
+      for (var i in setup) {
+        await dbHelper.insertFrame('Frame', i);
+      }
       if (insert == 0) {
         ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text('Batch already exists'))
@@ -128,6 +143,9 @@ class _AddBatchFormState extends State<AddBatchForm> {
               children: [
                 TextFormField(
                   controller: _batchNameController,
+                  inputFormatters: [
+                    UpperCaseTextFormatter(),
+                  ],
                   decoration: const InputDecoration(
                     prefixIcon: Icon(Icons.view_agenda_outlined),
                     labelText: 'Batch Name',
@@ -184,6 +202,22 @@ class _AddBatchFormState extends State<AddBatchForm> {
         ],
       ),
     );
+  }
+}
+
+class UpperCaseTextFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
+    return TextEditingValue(
+      text: capitalize(newValue.text),
+      selection: newValue.selection,
+    );
+  }
+  String capitalize(String value) {
+    if(value.trim().isEmpty) {
+      return '';
+    }
+    return value[0].toUpperCase() + value.substring(1).toLowerCase(); 
   }
 }
 

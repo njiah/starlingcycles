@@ -258,7 +258,11 @@ class _AddManufactureTypeState extends State<AddManufactureType> {
                             border: Border.all(color: Colors.grey),
                             ),
                             height: 50,
-                            child: Center(child: Text(processes[index]))
+                            child: ListTile(
+                              trailing: const Icon(Icons.drag_handle),
+                              title: Text(processes[index]),
+                            ),
+                            //child: Center(child: Text(processes[index]))
                             ),
                           );
                       },
@@ -346,8 +350,10 @@ class _AddProcessFormState extends State<AddProcessForm> {
   void _addProcess() async {
     if (_formKey.currentState!.validate()) {
       _formKey.currentState!.save();
+      print(processType);
       final process = {
         'processName': _processNameController.text,
+        'processType': processType,
       };
       final exist = await dbHelper.insertProcess('Process', process);
       if (exist != 0) {

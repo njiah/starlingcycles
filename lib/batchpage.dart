@@ -24,6 +24,7 @@ class _BatchPageState extends State<BatchPage> {
   List procedure = [];
   bool empty = true;
   String status = ''; 
+  String dateCreated = '';
 
   @override
   void initState() {
@@ -35,11 +36,15 @@ class _BatchPageState extends State<BatchPage> {
   
   void _queryFrames() async {
     final batch = await dbHelper.getBatch('Batch', widget.batchName);
-    
+    setState(() {
+      status = batch[0]['Status'];
+      dateCreated = batch[0]['dateCreated'];
+      print(status);
+    });
     final data = await dbHelper.getBatchFrame('Frame', widget.batchName);
+    print(data);
     if (data.isNotEmpty) {
       setState(() {
-        status = batch[0]['Status'];
         frames = data;
         empty = false;
       });
@@ -113,7 +118,7 @@ class _BatchPageState extends State<BatchPage> {
               ),
               child: Center(
                 child: Text(
-                  'Manufacture Type: $manufactureType',
+                  'Manufacture Type: $manufactureType, Date Created: $dateCreated',
                   style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                 ),
               ),
@@ -159,9 +164,35 @@ class _BatchPageState extends State<BatchPage> {
                       child: IconButton(
                         icon: const Icon(Icons.delete),
                         onPressed: (){
-                          _deleteFrame(e['frameNumber']);
-                          _queryFrames();
-                          frames.remove(e);
+                          showDialog(
+                            context: context,
+                            builder: (BuildContext context){
+                              return AlertDialog(
+                                title: const Text('Delete Frame'),
+                                content: const Text('Are you sure you want to delete this frame?'),
+                                actions: <Widget>[
+                                  TextButton(
+                                    onPressed: (){
+                                      Navigator.pop(context);
+                                    },
+                                    child: const Text('Cancel'),
+                                  ),
+                                  TextButton(
+                                    onPressed: (){
+                                      _deleteFrame(e['frameNumber']);
+                                      _queryFrames();
+                                      Navigator.pop(context);
+                                    },
+                                    child: const Text('Delete'),
+                                  ),
+                                ],
+                              );
+                            },
+                            
+                          );
+                          //_deleteFrame(e['frameNumber']);
+                          //_queryFrames();
+                          //frames.remove(e);
                         },),
                     ))
                 ])).toList(),
@@ -429,6 +460,7 @@ class _AddFrameFormState extends State<AddFrameForm> {
           child: Column(
             children: [
               TextFormField(
+                inputFormatters: <TextInputFormatter>[UpperCaseTextFormatter()],
                 controller: _frameNumberController,
                 decoration: const InputDecoration(
                   labelText: 'Frame Number',
@@ -470,7 +502,7 @@ class _AddFrameFormState extends State<AddFrameForm> {
                   if (value == null || value.isEmpty) {
                     return 'Please enter a size';
                   }
-                  else if (!RegExp(r'^[A-Z]{1,2}$').hasMatch(value)){
+                  else if (!RegExp(r'[A-Z]').hasMatch(value)){
                     return 'Please enter a valid size';
                   }
                   return null;

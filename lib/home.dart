@@ -71,7 +71,7 @@ class HeadingBox extends StatelessWidget {
         ],
       ),
       padding: const EdgeInsets.all(20),
-      child: width > 400
+      child: width > 100
       ? Row(
         children: <Widget>[
           Container(
