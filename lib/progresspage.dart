@@ -1,6 +1,8 @@
 //import 'package:to_csv/to_csv.dart' as exportcsv;
 import 'dart:convert';
 import 'dart:io';
+import 'package:sqflite/sqflite.dart';
+
 import 'database.dart';
 import 'dart:async';
 import 'package:intl/intl.dart';
@@ -280,8 +282,20 @@ class _ProgressTabState extends State<ProgressTab> {
                                 borderRadius: BorderRadius.circular(10),
                               ),
                               child: ExpansionTile(
+                                leading: IconButton(
+                                  icon: const Icon(Icons.comment_outlined),
+                                  onPressed: (){
+                                    showDialog(
+                                        context: context,
+                                        builder: (BuildContext context)
+                                        {
+                                          return CommentDialog(frameNumber: frames[index]['frameNumber']);
+                                        }
+                                      );
+                                  },
+                                ),
                                 title: Text("${frames[index]['frameNumber']}", style: const TextStyle(fontWeight: FontWeight.bold)),
-                                leading: const Icon(Icons.timer),
+                                //leading: const Icon(Icons.timer),
                                 subtitle: expanded[processes[i]]![frames[index]['frameNumber']] == true
                                 ? TimerClock(frameNumber: frames[index]['frameNumber'], processName: processes[i]) 
                                 : Text(time),
@@ -305,6 +319,18 @@ class _ProgressTabState extends State<ProgressTab> {
                                 borderRadius: BorderRadius.circular(10),
                                 ),
                                 child: CheckboxListTile(
+                                  secondary: IconButton(
+                                    icon: const Icon(Icons.comment_outlined),
+                                    onPressed: (){
+                                      showDialog(
+                                        context: context,
+                                        builder: (BuildContext context)
+                                        {
+                                          return CommentDialog(frameNumber: frames[index]['frameNumber']);
+                                        }
+                                      );
+                                    },
+                                  ),
                                   title: Text("${frames[index]['frameNumber']}", style: const TextStyle(fontWeight: FontWeight.bold)),
                                   //subtitle: Text(frames[index][processes[i]].toString()),
                                   value: checked[widget.processes[i]]![frames[index]['frameNumber']],   
@@ -554,4 +580,106 @@ class _ExportCSVState extends State<ExportCSV> {
     );
   }
 }
-  
+
+class CommentDialog extends StatefulWidget {
+  final String frameNumber;
+  const CommentDialog({super.key, required this.frameNumber});
+
+  @override
+  State<CommentDialog> createState() => _CommentDialogState();
+}
+
+class _CommentDialogState extends State<CommentDialog> {
+  final DatabaseHelper dbHelper = DatabaseHelper();
+  final commentController = TextEditingController();  
+  List<Map<String, dynamic>> frame = [];
+  String comment = '';
+
+  @override
+  void initState(){
+    super.initState();
+    getFrame();
+  }
+
+  void getFrame() async{
+    frame = await dbHelper.getFrame(widget.frameNumber);
+    if (frame[0]['comment'] != null) {
+      setState(() {
+        comment = frame[0]['comment'];
+        print(frame[0]['comment']);
+      });
+    }
+  }
+
+  void save() async{
+    await dbHelper.updateComment(widget.frameNumber, comment);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog.adaptive(
+      scrollable: true,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+      ),
+      title: Text('Add Comment for ${widget.frameNumber}'),
+      content: Container(
+        width: 400,
+        child: Column(
+          children: [
+            comment != '' ?
+            Container(
+              width: 400,
+              margin: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.grey[100],
+                border: Border.all(color: Colors.grey),
+              ),
+              child: Row(
+                children: [
+                  Text(comment),
+                  const Spacer(),
+                  IconButton(
+                    icon: const Icon(Icons.edit),
+                    onPressed: (){
+                      setState(() {
+                        comment = '';
+                      });
+                    },
+                  ),
+                ],
+              ),
+            ): 
+            TextField(
+              //autofillHints: const [AutofillHints.],
+              keyboardType: TextInputType.multiline,
+              controller: commentController,  
+              maxLines: 4,
+              decoration: const InputDecoration(
+              border: OutlineInputBorder(),
+              hintText: 'Enter your comments here',  
+              ),
+            ),
+          ]
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () async {
+            print(commentController.text);
+            await dbHelper.updateComment(widget.frameNumber, commentController.text);
+            Navigator.of(context).pop();
+          }, 
+          child: const Text('Save'),
+        ),
+        TextButton(
+          onPressed: (){
+            Navigator.of(context).pop();
+          }, 
+          child: const Text('Cancel'),
+        ),
+      ],
+    );
+  }
+}

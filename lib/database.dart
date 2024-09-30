@@ -231,6 +231,11 @@ class DatabaseHelper {
     return await db.query(table, where: 'batchName = ?', whereArgs: [batch]);
   }
 
+  Future<List<Map<String, dynamic>>> getFrame(String frame) async {
+    final db = await database;
+    return await db.query('Frame', where: 'frameNumber = ?', whereArgs: [frame]);
+  }
+
   Future<List<Map<String, dynamic>>> getManufacture(String table, String manufacture) async {
     final db = await database;
     return await db.query(table, where: 'manufactureName = ?', whereArgs: [manufacture]);
@@ -300,5 +305,10 @@ class DatabaseHelper {
   Future<dynamic> updateStatus(String batch, String status) async {
     final db = await database;
     return await db.update('Batch', {'Status': status}, where: 'batchName = ?', whereArgs: [batch]);
+  }
+
+  Future<dynamic> updateComment(String frame, String status) async {
+    final db = await database;
+    return await db.update('Frame', {'comment': status}, where: 'frameNumber = ?', whereArgs: [frame]);
   }
 }

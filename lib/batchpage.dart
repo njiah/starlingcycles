@@ -12,7 +12,7 @@ import 'progresspage.dart';
 
 class BatchPage extends StatefulWidget {
   final String batchName;
-  const BatchPage({Key? key, required this.batchName}) : super(key: key);
+  const BatchPage({super.key, required this.batchName});
   @override
   State<BatchPage> createState() => _BatchPageState();
 }
