@@ -1,8 +1,5 @@
-//import 'package:to_csv/to_csv.dart' as exportcsv;
 import 'dart:convert';
 import 'dart:io';
-import 'package:sqflite/sqflite.dart';
-
 import 'database.dart';
 import 'dart:async';
 import 'package:intl/intl.dart';
@@ -592,8 +589,9 @@ class CommentDialog extends StatefulWidget {
 class _CommentDialogState extends State<CommentDialog> {
   final DatabaseHelper dbHelper = DatabaseHelper();
   final commentController = TextEditingController();  
+  final editController = TextEditingController();
   List<Map<String, dynamic>> frame = [];
-  String comment = '';
+  String comments = '';
 
   @override
   void initState(){
@@ -605,14 +603,14 @@ class _CommentDialogState extends State<CommentDialog> {
     frame = await dbHelper.getFrame(widget.frameNumber);
     if (frame[0]['comment'] != null) {
       setState(() {
-        comment = frame[0]['comment'];
-        print(frame[0]['comment']);
+        comments = frame[0]['comment'];
+        commentController.text = comments;  
       });
     }
   }
 
   void save() async{
-    await dbHelper.updateComment(widget.frameNumber, comment);
+    await dbHelper.updateComment(widget.frameNumber, comments.toString());
   }
 
   @override
@@ -623,13 +621,12 @@ class _CommentDialogState extends State<CommentDialog> {
         borderRadius: BorderRadius.circular(10),
       ),
       title: Text('Add Comment for ${widget.frameNumber}'),
-      content: Container(
+      content: SizedBox(
         width: 400,
         child: Column(
           children: [
-            comment != '' ?
+            comments != '' ?
             Container(
-              width: 400,
               margin: const EdgeInsets.only(bottom: 10),
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
@@ -638,13 +635,15 @@ class _CommentDialogState extends State<CommentDialog> {
               ),
               child: Row(
                 children: [
-                  Text(comment),
-                  const Spacer(),
+                  Expanded(
+                    child: Text(overflow: TextOverflow.clip, comments)
+                  ),
+                  //const Spacer(),
                   IconButton(
                     icon: const Icon(Icons.edit),
                     onPressed: (){
                       setState(() {
-                        comment = '';
+                        comments = '';
                       });
                     },
                   ),
@@ -654,8 +653,8 @@ class _CommentDialogState extends State<CommentDialog> {
             TextField(
               //autofillHints: const [AutofillHints.],
               keyboardType: TextInputType.multiline,
-              controller: commentController,  
-              maxLines: 4,
+              controller: comments != '' ? editController : commentController,  
+              maxLines: 5,
               decoration: const InputDecoration(
               border: OutlineInputBorder(),
               hintText: 'Enter your comments here',  
@@ -667,8 +666,8 @@ class _CommentDialogState extends State<CommentDialog> {
       actions: [
         TextButton(
           onPressed: () async {
-            print(commentController.text);
             await dbHelper.updateComment(widget.frameNumber, commentController.text);
+            // ignore: use_build_context_synchronously
             Navigator.of(context).pop();
           }, 
           child: const Text('Save'),

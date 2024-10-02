@@ -307,8 +307,8 @@ class DatabaseHelper {
     return await db.update('Batch', {'Status': status}, where: 'batchName = ?', whereArgs: [batch]);
   }
 
-  Future<dynamic> updateComment(String frame, String status) async {
+  Future<dynamic> updateComment(String frame, String comment) async {
     final db = await database;
-    return await db.update('Frame', {'comment': status}, where: 'frameNumber = ?', whereArgs: [frame]);
+    return await db.update('Frame', {'comment': comment}, where: 'frameNumber = ?', whereArgs: [frame]);
   }
 }
