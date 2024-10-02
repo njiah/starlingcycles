@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:starlingcycles/database.dart'; 
 import 'batchpage.dart';
+import 'manufacturepage.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -79,7 +80,7 @@ class _ManufactureTypesBoxState extends State<ManufactureTypesBox> {
                       itemBuilder: (context, index) {
                         return InkWell(
                           onTap: () {
-                            Navigator.of(context).push(MaterialPageRoute(builder: (context) => BatchPage(batchName: manufactureTypes[index]['manufactureName'])));
+                            Navigator.of(context).push(MaterialPageRoute(builder: (context) => ManufacturePage(manufactureName: manufactureTypes[index]['manufactureName'])));
                           },
                           child: Container(
                             decoration: BoxDecoration(
@@ -89,16 +90,12 @@ class _ManufactureTypesBoxState extends State<ManufactureTypesBox> {
                             ),
                             width: 220,
                             padding: const EdgeInsets.all(10),
-                            //height: 100,
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Icon(Icons.settings, size: 50, color: Theme.of(context).colorScheme.primary),
                                 const SizedBox(height: 50),
                                 Text(manufactureTypes[index]['manufactureName'], style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                                /*Center(
-                                  child: Text(manufactureTypes[index]['procedure'], style: const TextStyle(fontSize: 15)),
-                                ),*/
                               ],
                             ),
                           ),

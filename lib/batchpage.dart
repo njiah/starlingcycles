@@ -136,10 +136,11 @@ class _BatchPageState extends State<BatchPage> {
                         'Date Completed: $dateCompleted',
                         style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.green),
                       ) : 
-                      Text(
+                      const Spacer(),
+                      /*Text(
                         'Status: $status',
                         style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                      ),
+                      ),*/
                     ],
                   ),
                 ]
