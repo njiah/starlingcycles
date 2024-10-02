@@ -149,9 +149,10 @@ class _ProgressPageState extends State<ProgressPage> {
                             //print(data);
                             Share.shareXFiles([XFile(path)], text: 'CSV file for ${widget.batchname}'); 
                             dbHelper.updateStatus(widget.batchname, 'Completed');
+                            dbHelper.updateDate(widget.batchname, DateFormat('dd-MM-yyyy').format(DateTime.now()));
                             Navigator.of(context).pop();
                           }, 
-                          child: const Text('Share'),
+                          child: const Text('Share and Complete'),
                         ),
                         TextButton(
                           onPressed: (){
@@ -291,11 +292,20 @@ class _ProgressTabState extends State<ProgressTab> {
                                       );
                                   },
                                 ),
-                                title: Text("${frames[index]['frameNumber']}", style: const TextStyle(fontWeight: FontWeight.bold)),
+                                title: Text("${frames[index]['frameNumber']}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
                                 //leading: const Icon(Icons.timer),
                                 subtitle: expanded[processes[i]]![frames[index]['frameNumber']] == true
                                 ? TimerClock(frameNumber: frames[index]['frameNumber'], processName: processes[i]) 
-                                : Text(time),
+                                : Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text("${frames[index]['model']}, ${frames[index]['size']}"),
+                                    Text(
+                                      time,
+                                      style: const TextStyle(fontWeight: FontWeight.bold),
+                                    ),
+                                  ],
+                                ),
                                 onExpansionChanged: (bool? expand) async {
                                   setState(() {
                                     expanded[processes[i]]![frames[index]['frameNumber']] = expand!;
@@ -328,8 +338,8 @@ class _ProgressTabState extends State<ProgressTab> {
                                       );
                                     },
                                   ),
-                                  title: Text("${frames[index]['frameNumber']}", style: const TextStyle(fontWeight: FontWeight.bold)),
-                                  //subtitle: Text(frames[index][processes[i]].toString()),
+                                  title: Text("${frames[index]['frameNumber']}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
+                                  subtitle: Text("${frames[index]['model']}, ${frames[index]['size']}"),
                                   value: checked[widget.processes[i]]![frames[index]['frameNumber']],   
                                   onChanged: (bool? value) {
                                       setState(() {

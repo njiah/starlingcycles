@@ -54,7 +54,7 @@ class _ManufactureTypesBoxState extends State<ManufactureTypesBox> {
         Stack(
           children: [
             Container(
-            height: 400,
+            height: 250,
             padding: const EdgeInsets.only(left: 10, right: 10, top: 50, bottom: 10),
             decoration: BoxDecoration(
               color: Theme.of(context).colorScheme.primary,
@@ -77,19 +77,28 @@ class _ManufactureTypesBoxState extends State<ManufactureTypesBox> {
                       padding: const EdgeInsets.all(5),
                       itemCount: manufactureTypes.length,
                       itemBuilder: (context, index) {
-                        return Card(
+                        return InkWell(
+                          onTap: () {
+                            Navigator.of(context).push(MaterialPageRoute(builder: (context) => BatchPage(batchName: manufactureTypes[index]['manufactureName'])));
+                          },
                           child: Container(
-                            width: 250,
-                            height: 250,
+                            decoration: BoxDecoration(
+                              color: Color.fromARGB(255, 238, 236, 227),
+                              borderRadius: BorderRadius.circular(25),
+                              border: Border.all(color: Colors.black12),
+                            ),
+                            width: 220,
+                            padding: const EdgeInsets.all(10),
+                            //height: 100,
                             child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
+                                Icon(Icons.settings, size: 50, color: Theme.of(context).colorScheme.primary),
                                 const SizedBox(height: 50),
-                                Center(
-                                  child: Text(manufactureTypes[index]['manufactureName'], style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                                ),
-                                Center(
+                                Text(manufactureTypes[index]['manufactureName'], style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                                /*Center(
                                   child: Text(manufactureTypes[index]['procedure'], style: const TextStyle(fontSize: 15)),
-                                ),
+                                ),*/
                               ],
                             ),
                           ),

@@ -25,6 +25,7 @@ class _BatchPageState extends State<BatchPage> {
   bool empty = true;
   String status = ''; 
   String dateCreated = '';
+  String dateCompleted = '';
 
   @override
   void initState() {
@@ -39,6 +40,7 @@ class _BatchPageState extends State<BatchPage> {
     setState(() {
       status = batch[0]['Status'];
       dateCreated = batch[0]['dateCreated'];
+      dateCompleted = batch[0]['dateCompleted']?? ''; 
       print(status);
     });
     final data = await dbHelper.getBatchFrame('Frame', widget.batchName);
@@ -116,11 +118,31 @@ class _BatchPageState extends State<BatchPage> {
                 color: Colors.grey[200],
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: Center(
-                child: Text(
-                  'Manufacture Type: $manufactureType, Date Created: $dateCreated',
+              child: Column(
+                children: [
+                  Text(
+                  'Manufacture Type: $manufactureType',
                   style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                ),
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      Text(
+                        'Date Created: $dateCreated',
+                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                      const Spacer(),
+                      status == 'Completed' ? Text(
+                        'Date Completed: $dateCompleted',
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.green),
+                      ) : 
+                      Text(
+                        'Status: $status',
+                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                ]
               ),
             ),
             Container(
@@ -427,13 +449,15 @@ class _AddFrameFormState extends State<AddFrameForm> {
         'size': _sizeController.text,
         'batchNumber': widget.batchName,  
       };
-      final addedFrame = await dbHelper.insertFrame('Frame', frame);
-      if (addedFrame == 0) {
+      //final addedFrame = await dbHelper.insertFrame('Frame', frame);
+      final exist = await dbHelper.getFrame(_frameNumberController.text);
+      if (exist.isNotEmpty) {
         setState(() {
           frameError = 'Frame already exists!';
         });
       }
       else {
+        await dbHelper.insertFrame('Frame', frame);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Frame added')),
         );

@@ -216,14 +216,8 @@ class DatabaseHelper {
 
   Future<int> insertFrame(String table, Map<String, dynamic> data) async {
     final db = await database;
-    final exist = await db.query(table, where: 'frameNumber = ?', whereArgs: [data['frameNumber']]);
-    if (exist.isNotEmpty) {
-      return 0;
-    }
-    else {
-      print('Inserted into $table');
-      return await db.insert(table, data);
-    }
+    //final exist = await db.query(table, where: 'frameNumber = ?', whereArgs: [data['frameNumber']]);
+    return await db.insert(table, data);
   }
 
   Future<List<Map<String, dynamic>>> getBatch(String table, String batch) async {
@@ -305,6 +299,11 @@ class DatabaseHelper {
   Future<dynamic> updateStatus(String batch, String status) async {
     final db = await database;
     return await db.update('Batch', {'Status': status}, where: 'batchName = ?', whereArgs: [batch]);
+  }
+
+  Future<dynamic> updateDate(String batch, String date) async {
+    final db = await database;
+    return await db.update('Batch', {'dateCompleted': date}, where: 'batchName = ?', whereArgs: [batch]);
   }
 
   Future<dynamic> updateComment(String frame, String comment) async {
