@@ -34,7 +34,7 @@ class MyHomePage extends StatefulWidget{
   State<MyHomePage> createState() => _MyHomePageState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
+class _MyHomePageState extends State<MyHomePage>{
   int _currentIndex = 0;
 
   final List<Widget> _tabs = [
@@ -81,14 +81,3 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 }
-
-/*class SettingsPage extends StatelessWidget {
-  const SettingsPage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return const Center(
-      child: Text('Settings Page'),
-    );
-  }
-}*/

@@ -296,6 +296,11 @@ class DatabaseHelper {
     return await db.delete(table, where: 'frameNumber = ?', whereArgs: [frame]);
   }
 
+  Future<dynamic> deleteManufacture(String manufactureName) async {
+    final db = await database;
+    return await db.delete('Manufacture', where: 'manufactureName = ?', whereArgs: [manufactureName]);
+  }
+
   Future<dynamic> updateStatus(String batch, String status) async {
     final db = await database;
     return await db.update('Batch', {'Status': status}, where: 'batchName = ?', whereArgs: [batch]);

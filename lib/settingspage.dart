@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:starlingcycles/database.dart'; 
+import 'package:starlingcycles/database.dart';
+import 'package:starlingcycles/main.dart'; 
 import 'batchpage.dart';
 import 'manufacturepage.dart';
 
@@ -29,7 +30,7 @@ class ManufactureTypesBox extends StatefulWidget {
   State<ManufactureTypesBox> createState() => _ManufactureTypesBoxState();
 }
 
-class _ManufactureTypesBoxState extends State<ManufactureTypesBox> {
+class _ManufactureTypesBoxState extends State<ManufactureTypesBox>{
   final DatabaseHelper dbHelper = DatabaseHelper();
   List<Map<String, dynamic>> manufactureTypes = [];
   List<Map<String, dynamic>> processNames = [];
@@ -60,6 +61,13 @@ class _ManufactureTypesBoxState extends State<ManufactureTypesBox> {
             decoration: BoxDecoration(
               color: Theme.of(context).colorScheme.primary,
               borderRadius: BorderRadius.circular(10),
+              boxShadow: const [
+                BoxShadow(
+                  color: Colors.grey,
+                  offset: Offset(0.0, 1.0), //(x,y)
+                  blurRadius: 6.0,
+                ),
+              ],  
             ),
           child: FutureBuilder(
               future: dbHelper.query('Manufacture'),
@@ -80,13 +88,18 @@ class _ManufactureTypesBoxState extends State<ManufactureTypesBox> {
                       itemBuilder: (context, index) {
                         return InkWell(
                           onTap: () {
-                            Navigator.of(context).push(MaterialPageRoute(builder: (context) => ManufacturePage(manufactureName: manufactureTypes[index]['manufactureName'])));
+                            final result = Navigator.of(context).push(MaterialPageRoute(builder: (context) => ManufacturePage(manufactureName: manufactureTypes[index]['manufactureName'])));
+                            result.then((value) {
+                              if (value == true) {
+                                _getManufactureType();
+                              }
+                            });
                           },
                           child: Container(
+                            margin: const EdgeInsets.only(left:5, right:5),
                             decoration: BoxDecoration(
                               color: Color.fromARGB(255, 238, 236, 227),
                               borderRadius: BorderRadius.circular(25),
-                              border: Border.all(color: Colors.black12),
                             ),
                             width: 220,
                             padding: const EdgeInsets.all(10),
@@ -94,7 +107,7 @@ class _ManufactureTypesBoxState extends State<ManufactureTypesBox> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Icon(Icons.settings, size: 50, color: Theme.of(context).colorScheme.primary),
-                                const SizedBox(height: 50),
+                                const SizedBox(height: 70),
                                 Text(manufactureTypes[index]['manufactureName'], style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                               ],
                             ),
@@ -149,12 +162,19 @@ class _AddManufactureTypeState extends State<AddManufactureType> {
   List procedure = [];
   List<String> processes = [];
   List<String> procedureList = [];  
+  String error = '';
   final _formKey = GlobalKey<FormState>();
 
   @override
   void initState() {
     super.initState();
     _getProcesses();
+  }
+
+  @override
+  void dispose() {
+    _manufactureNameController.dispose();
+    super.dispose();
   }
 
   void _getProcesses() async {
@@ -176,18 +196,23 @@ class _AddManufactureTypeState extends State<AddManufactureType> {
         'manufactureName': _manufactureNameController.text, 
         'procedure': procedureList.join(',') 
       };
-      final exist = await dbHelper.insertManufacture('Manufacture', manufacture);
-      if (exist != 0) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Manufacture Type added successfully'))
-        );
+      if (procedureList.isEmpty) {
+        setState(() {
+          error = 'Please add at least one process.';
+        });
+        
       }
-      else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Manufacture Type already exists'))
-        );
+      else{  
+        final exist = await dbHelper.insertManufacture('Manufacture', manufacture);
+        if (exist == 0) {
+          setState(() {
+            error = '${manufacture['manufactureName']} already exists';
+          });
+        }
+        else {
+          Navigator.pop(context, true);
+        }
       }
-      Navigator.pop(context, true);
     }
   }
 
@@ -195,7 +220,9 @@ class _AddManufactureTypeState extends State<AddManufactureType> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Add Manufacturing Type'),
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        iconTheme: const IconThemeData(color: Colors.white),
+        title: const Text('Add Manufacturing Type', style: TextStyle(color: Colors.white)),
         actions: [
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -213,6 +240,8 @@ class _AddManufactureTypeState extends State<AddManufactureType> {
           key: _formKey,
           child: Column(
             children: [
+              if (error.isNotEmpty) 
+                Text(error, style: const TextStyle(color: Colors.red)),
               TextFormField(
                 controller: _manufactureNameController,
                 inputFormatters: <TextInputFormatter> [UpperCaseTextFormatter()],
@@ -231,46 +260,46 @@ class _AddManufactureTypeState extends State<AddManufactureType> {
               Row(
                 children: <Widget> [
                   Container(
-                    width: 300,
-                    height: 400,
+                    width: MediaQuery.of(context).size.width * 0.4,
+                    height: MediaQuery.of(context).size.height * 0.65,
                     child: ListView.builder(
                       padding: const EdgeInsets.all(10),
                       itemCount: processes.length,
                       itemBuilder: (context, index) {
-                        return Draggable(
-                          data: processes[index],
-                          feedback: Container(
-                            decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(10),
-                            color: Colors.green,
-                            ),
-                            width: 100,
-                            height: 50,
-                            child: Center(child: Text(processes[index], style: const TextStyle(fontSize: 15, color: Colors.white))),
-                            ),
-                          childWhenDragging: Container(
-                            decoration: BoxDecoration(
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 10),
+                          decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(10),
                             border: Border.all(color: Colors.grey),
-                            ),
-                            //width: 100,
-                            height: 50,
-                            child: Center(child: Text(processes[index]))
-                            ),
-                          child: Container(
-                            margin: const EdgeInsets.all(5),
-                            decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: Colors.grey),
-                            ),
-                            height: 50,
-                            child: ListTile(
-                              trailing: const Icon(Icons.drag_handle),
-                              title: Text(processes[index]),
-                            ),
-                            //child: Center(child: Text(processes[index]))
-                            ),
-                          );
+                          ),
+                          child: ListTile(
+                            title: Text(processes[index]),
+                            trailing: Draggable<String>(
+                              data: processes[index],
+                              feedback: Expanded(
+                                child: Container(
+                                  padding: const EdgeInsets.all(15),
+                                  width: processes[index].length + 250,
+                                  height: 55,
+                                  decoration: BoxDecoration(
+                                    color: Theme.of(context).primaryColor,
+                                    borderRadius: BorderRadius.circular(10), 
+                                    //border: Border.all(color: Theme.of(context).primaryColor),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      const Icon(Icons.drag_handle, color: Colors.white,),
+                                      const Spacer(),
+                                      Text(processes[index], style: const TextStyle(fontSize: 18,color: Colors.white, decoration: TextDecoration.none)),
+                                      ],
+                                    )
+                                  ),
+                              ),
+                              childWhenDragging: const Icon(Icons.drag_handle, color: Colors.grey),
+                              child: const Icon(Icons.drag_handle),
+                            )
+                          ),
+                        );
                       },
                     ),
                   ),
@@ -292,8 +321,8 @@ class _AddManufactureTypeState extends State<AddManufactureType> {
                             border: Border.all(color: Colors.grey),
                             color: Colors.grey[200],
                           ),
-                          width: 300,
-                          height: 400,
+                          width: MediaQuery.of(context).size.width * 0.5,
+                          height: MediaQuery.of(context).size.height * 0.65,
                           child: procedure.isEmpty ? 
                           const Center(child: Text('Drag and drop processes here')) : 
                           ListView.builder(
@@ -352,6 +381,7 @@ class _AddProcessFormState extends State<AddProcessForm> {
   final _formKey = GlobalKey<FormState>();
   List<String> processTypes = ['tick', 'timer'];  
   String processType = 'timer';
+  String error = '';
 
   void _addProcess() async {
     if (_formKey.currentState!.validate()) {
@@ -366,20 +396,20 @@ class _AddProcessFormState extends State<AddProcessForm> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Process added successfully'))
         );
+        Navigator.pop(context, true);
       }
       else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Process already exists'))
-        );
+        setState(() {
+          error = '${process['processName']} already exists';
+        });
       }
-      Navigator.pop(context, true);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return AlertDialog.adaptive(
-      title: const Text('Add New Process'),
+      title: error.isNotEmpty ? Text(error, style: const TextStyle(color: Colors.red)) : const Text('Add New Process'),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(10),
       ),

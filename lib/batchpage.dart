@@ -82,6 +82,7 @@ class _BatchPageState extends State<BatchPage> {
     final String batchName = widget.batchName;
     return Scaffold(
       appBar: AppBar(
+        iconTheme: const IconThemeData(color: Colors.white),
         backgroundColor: Theme.of(context).colorScheme.primary,
         title: Text(widget.batchName, style: const TextStyle(color: Colors.white)),
         actions: status != 'Completed' ? [
