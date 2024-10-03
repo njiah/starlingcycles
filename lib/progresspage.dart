@@ -199,6 +199,7 @@ class _ProgressTabState extends State<ProgressTab> {
   void initState(){
     super.initState();
     _getFrames();
+    
   }
 
   void _getFrames() async {
@@ -223,7 +224,11 @@ class _ProgressTabState extends State<ProgressTab> {
   }
 
   void updateProcess(String frameNumber, String process, bool value) async {
-    await dbHelper.updateProcessTick(frameNumber, process, value);
+    await dbHelper.updateProcessTick(frameNumber, process, widget.batchName, value);
+  }
+
+  void updateFrames() async {
+    frames = await dbHelper.getBatchFrame('Frame', widget.batchName);
   }
 
   @override
@@ -295,7 +300,12 @@ class _ProgressTabState extends State<ProgressTab> {
                                 title: Text("${frames[index]['frameNumber']}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
                                 //leading: const Icon(Icons.timer),
                                 subtitle: expanded[processes[i]]![frames[index]['frameNumber']] == true
-                                ? TimerClock(frameNumber: frames[index]['frameNumber'], processName: processes[i]) 
+                                ? TimerClock(frameNumber: frames[index]['frameNumber'], processName: processes[i], batchName: widget.batchName, time: time,onDone:() {
+                                  setState(() {
+                                    expanded[processes[i]]![frames[index]['frameNumber']] = false;
+                                  });
+                                  updateFrames();
+                                })
                                 : Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
@@ -306,15 +316,16 @@ class _ProgressTabState extends State<ProgressTab> {
                                     ),
                                   ],
                                 ),
-                                onExpansionChanged: (bool? expand) async {
+                                onExpansionChanged: (bool expand) {
                                   setState(() {
-                                    expanded[processes[i]]![frames[index]['frameNumber']] = expand!;
+                                    expanded[processes[i]]![frames[index]['frameNumber']] = expand;
                                   });
-                                  frames = await dbHelper.getBatchFrame('Frame', widget.batchName);
+                                  updateFrames();
                                 },
-                                /*children: [
-                                  TimerClock(frameNumber: frames[index]['frameNumber'], processName: processes[i]),
-                                ],*/
+                                trailing: Icon(
+                                  expanded[processes[i]]![frames[index]['frameNumber']] == true ?
+                                  Icons.keyboard_arrow_up
+                                  : Icons.keyboard_arrow_down ,)
                                 ),
                             );
                             }
@@ -391,7 +402,10 @@ class _ProgressTabState extends State<ProgressTab> {
 class TimerClock extends StatefulWidget {
   final String frameNumber;
   final String processName;
-  TimerClock({Key? key, required this.frameNumber, required this.processName}) : super(key: key);
+  final String batchName;
+  final String time;
+  final VoidCallback onDone;
+  TimerClock({Key? key, required this.frameNumber, required this.processName, required this.batchName, required this.time, required this.onDone}) : super(key: key);
 
   @override
   State<TimerClock> createState() => _TimerClockState();
@@ -404,6 +418,22 @@ class _TimerClockState extends State<TimerClock> {
   bool _isActive = false;
   bool selected = false;  
   final dbHelper = DatabaseHelper();
+  String formattedTime = '';
+
+  @override
+  void initState() {
+    super.initState();
+    getTime();
+  }
+
+  void getTime(){
+    List<String> time = widget.time.split(':');
+    if (time.length == 3) {
+      setState(() {
+        _seconds = int.parse(time[0]) * 3600 + int.parse(time[1]) * 60 + int.parse(time[2]);
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -458,6 +488,7 @@ class _TimerClockState extends State<TimerClock> {
   @override
   Widget build(BuildContext context) {
     String formattedTime = DateFormat('HH:mm:ss').format(DateTime.utc(0, 0, 0, 0, 0, _seconds));
+    //String formattedTime = widget.time;
     return Column(
           children: [
             Text(formattedTime, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
@@ -480,29 +511,36 @@ class _TimerClockState extends State<TimerClock> {
                   icon: const Icon(Icons.play_arrow),
                   selectedIcon: const Icon(Icons.pause),
                 ),
-                const SizedBox(width: 20),
-                ElevatedButton(
+                const SizedBox(width: 10),
+                IconButton.filledTonal(
+                  icon: const Icon(Icons.stop),
+                  onPressed: (){
+                    pauseTimer();
+                    setState(() {
+                      selected = false;
+                    });
+                    dbHelper.updateProcessTimer(widget.frameNumber, widget.processName, widget.batchName, formattedTime);                    //showdialog(context); 
+                  },
+                ),
+                const SizedBox(width: 10),
+                IconButton.filledTonal(
                   onPressed: (){
                     stopTimer();
                     setState(() {
                       selected = false;
                     });
                   }, 
-                  child: const Text('Reset'),
+                  icon: const Icon(Icons.replay),
                 ),
-                const SizedBox(width: 20),
+                const SizedBox(width: 10),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.green,
                   ),
                   child: const Text('Done', style: TextStyle(color: Colors.white),),
                   onPressed: (){
-                    pauseTimer();
-                    setState(() {
-                      selected = false;
-                    });
-                    dbHelper.updateProcessTimer(widget.frameNumber, widget.processName, formattedTime);
-                    //showdialog(context); 
+                    //dbHelper.updateProcessTimer(widget.frameNumber, widget.processName, widget.batchName, formattedTime);
+                    widget.onDone();
                   },
                 )
               ],

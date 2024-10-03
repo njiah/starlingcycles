@@ -275,15 +275,15 @@ class DatabaseHelper {
     }
   }
 
-  Future<dynamic> updateProcessTick(String frameNumber, String processName, bool value) async {
+  Future<dynamic> updateProcessTick(String frameNumber, String processName, String batch, bool value) async {
     final db = await database;
-    return await db.update('Frame', {processName: value}, where: 'frameNumber = ?', whereArgs: [frameNumber]);
+    return await db.update('Frame', {processName: value}, where: 'frameNumber = ? AND batchNumber = ?', whereArgs: [frameNumber, batch]);
   }
 
-  Future<dynamic> updateProcessTimer(String frameNumber, String processName, String value) async {
+  Future<dynamic> updateProcessTimer(String frameNumber, String processName, String batch, String value) async {
     print('Updating $processName to $value');
     final db = await database;
-    return await db.update('Frame', {processName: value}, where: 'frameNumber = ?', whereArgs: [frameNumber]);
+    return await db.update('Frame', {processName: value}, where: 'frameNumber = ? AND batchNumber = ?', whereArgs: [frameNumber, batch]);
   } 
 
   Future<dynamic> deleteBatch(String table, String batch) async {
