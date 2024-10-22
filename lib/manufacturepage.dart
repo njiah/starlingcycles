@@ -1,11 +1,6 @@
-import 'dart:async';
-import 'dart:ffi';
 import 'package:flutter/material.dart';
-import 'package:starlingcycles/home.dart';
-import 'package:starlingcycles/main.dart'; 
 import 'database.dart';
 import 'batchpage.dart';
-import 'settingspage.dart';
 
 // ignore: must_be_immutable
 class ManufacturePage extends StatefulWidget {
@@ -78,7 +73,14 @@ class _ManufacturePageState extends State<ManufacturePage> {
                   builder: (BuildContext context) {
                     return AlertDialog(
                       title: const Text('Warning!', style: TextStyle(color: Colors.red)),
-                      content: Text('Complete all batches before deleting ${widget.manufactureName}.'),
+                      content: Text.rich(
+                        TextSpan(
+                          text: "Complete all batches before deleting ",
+                          children: <TextSpan>[
+                            TextSpan(text: '${widget.manufactureName}.',
+                            style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(context).primaryColor)
+                            ),
+                          ],),),
                       actions: [
                         TextButton(
                           onPressed: () {
@@ -135,7 +137,7 @@ class _ManufacturePageState extends State<ManufacturePage> {
             child: Text(' Procedures:', style: TextStyle(fontSize: 20))),
           Container(
             decoration: BoxDecoration(
-              color: Color.fromARGB(124, 217, 208, 194),
+              color: const Color.fromARGB(124, 217, 208, 194),
               borderRadius: BorderRadius.circular(7),
             ),
             padding: const EdgeInsets.all(16),

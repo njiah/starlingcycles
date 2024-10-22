@@ -151,7 +151,9 @@ class BatchCard extends StatelessWidget{
                 MaterialPageRoute(
                   builder: (context) => BatchPage(batchName: batchname),
                 ),
-              );
+              ).then((_){
+                _triggerDataReload(context);
+              });
             },
           ),
           leading: const Icon(Icons.pedal_bike_rounded, size: 40,),
@@ -161,10 +163,19 @@ class BatchCard extends StatelessWidget{
               MaterialPageRoute(
                 builder: (context) => BatchPage(batchName: batchname),
               ),
-            );
+            ).then((_){
+              _triggerDataReload(context);
+            });
+            
           },
         ),
       ),
     );
   }
+}
+
+//reload data after returning from batch page
+void _triggerDataReload(BuildContext context){ 
+  final progressPageState = context.findAncestorStateOfType<_ProgressPageState>();
+  progressPageState?._getBatches();
 }

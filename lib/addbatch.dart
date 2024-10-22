@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'batchpage.dart';
 import 'database.dart'; 
 import 'package:flutter/services.dart';
+import 'addManufacture.dart';
 
 
 class Batch {
@@ -18,6 +19,8 @@ class Batch {
 }
 
 class AddBatchForm extends StatefulWidget {
+  const AddBatchForm({super.key});
+
   //const AddBatchForm({super.key,});
 
   @override
@@ -31,13 +34,12 @@ class _AddBatchFormState extends State<AddBatchForm> {
   List<String> manufactureTypes = [];
   final _batchNameController = TextEditingController();
   String? manufactureType;
+  // ignore: unused_field
   String _batchNameError = ''; 
-  //Batch batch = Batch(batchName: 'M', manufactureType: '', dateCreated: DateTime.now());  
+  String batchError = '';
   
   @override
   void dispose() {
-    //_batchNameController.dispose();
-    //_manufactureTypeController.dispose();
     super.dispose();
   }
   @override
@@ -50,12 +52,12 @@ class _AddBatchFormState extends State<AddBatchForm> {
     final data = await dbHelper.query('Manufacture');
     setState(() {
       manufactureTypes = data.map((e) => e['manufactureName'].toString()).toList();
-      print(manufactureTypes);
       if (manufactureTypes.isNotEmpty) {
         manufactureType = manufactureTypes[0];
       }
       else {
-        manufactureType = 'Add New';
+        manufactureTypes = ['Add New'];
+        manufactureType = null;
       }
     });
   }
@@ -82,7 +84,7 @@ class _AddBatchFormState extends State<AddBatchForm> {
     return RegExp(r'^([A-Z]\d{3})$').hasMatch(name);
   }
 
-  void insertBatch() async{
+  void insertBatch() async {
     if(_formKey.currentState!.validate()){
       String formattedDate = DateFormat('dd-MM-yyyy').format(DateTime.now());
       Map<String, dynamic> row = {
@@ -105,28 +107,28 @@ class _AddBatchFormState extends State<AddBatchForm> {
         },
       };
       final insert = await dbHelper.insertBatch('Batch', row);
-      for (var i in setup) {
-        await dbHelper.insertFrame('Frame', i);
-      }
+      
       if (insert == 0) {
-        ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Batch already exists'))
-      );
+        setState(() {
+          batchError = 'Batch already exists';
+        });
       }
       else {
-      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Batch added successfully'))
-      );
-      Navigator.of(context).push(
-        MaterialPageRoute(builder: (context) => BatchPage(batchName: row['batchName'])) 
-      );
+        for (var i in setup) {
+          dbHelper.insertFrame('Frame', i);
+        }
+        Navigator.of(context).push(
+          MaterialPageRoute(builder: (context) => BatchPage(batchName: row['batchName']))
+        );
+        setState(() {
+          batchError = '';
+        });
+      }
       _batchNameController.clear();
-    }
     }
   }
   @override
   Widget build(BuildContext context) {
-    //DateFormat dateformat = DateFormat('dd-MM-yyyy');
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -136,7 +138,9 @@ class _AddBatchFormState extends State<AddBatchForm> {
       ),
       child: Column(
         children: [
-          const Text('Create a new Batch', style: TextStyle(fontSize: 20,)),
+          batchError == ''
+          ?const Text('Create a new Batch', style: TextStyle(fontSize: 20,))
+          : Text(batchError, style: const TextStyle(fontSize: 20, color: Colors.red)),
           Form(
             key: _formKey,
             child: Column(
@@ -169,6 +173,12 @@ class _AddBatchFormState extends State<AddBatchForm> {
                 ),
                 const SizedBox(height:10),
                 DropdownButtonFormField(
+                  validator: (value){
+                    if (value == null) {
+                      return 'Please add a manufacture type';
+                    }
+                    return null;
+                  },
                   decoration: const InputDecoration(
                     prefixIcon: Icon(Icons.build),
                     labelText: 'Manufacture Type',
@@ -184,6 +194,13 @@ class _AddBatchFormState extends State<AddBatchForm> {
                     setState(() {
                       manufactureType = value;
                     });
+                    if (value == 'Add New') {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(builder: (context) => const AddManufactureType())
+                        ).then((_){
+                          _getManufactureType();
+                        });
+                    }
                   },
                 ),
                 const SizedBox(height:10),
@@ -193,7 +210,9 @@ class _AddBatchFormState extends State<AddBatchForm> {
                     backgroundColor: const Color.fromARGB(255, 39, 88, 128),
                     foregroundColor: Colors.white,
                   ),
-                  onPressed: insertBatch,
+                  onPressed: (){
+                    insertBatch();
+                  },
                   child: const Text('Add Batch'),
                 ),
               ],

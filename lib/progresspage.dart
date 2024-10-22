@@ -28,7 +28,7 @@ class CheckboxProcess {
 
 class ProgressPage extends StatefulWidget {
   final String batchname;
-  const ProgressPage({Key? key, required this.batchname}) : super(key: key); 
+  const ProgressPage({super.key, required this.batchname}); 
   //final List procedure;
   @override
   State<ProgressPage> createState() => _ProgressPageState();
@@ -41,13 +41,13 @@ class _ProgressPageState extends State<ProgressPage> {
   List processes = [];
   List processTypes = [];
   String csv = '';
+  String error = '';
   
   @override
   void initState(){
     super.initState();  
     frames = dbHelper.getBatchFrame('Frame', widget.batchname);
     getProcesses();
-    //addProcess();
   }
   void getProcesses() async {
     final batch = await dbHelper.getBatch('Batch', widget.batchname);
@@ -84,14 +84,11 @@ class _ProgressPageState extends State<ProgressPage> {
       rows.add(row.values.toList());
     }
     String csv = const ListToCsvConverter().convert(rows);
-    //print(csv);
     
     final String directory = (await getApplicationDocumentsDirectory()).path;
     final String path = '$directory/${widget.batchname}.csv';
     final File file = File(path);
     await file.writeAsString(csv);
-    print(csv);
-    print('CSV saved at $path');
 
   }
 
@@ -101,19 +98,20 @@ class _ProgressPageState extends State<ProgressPage> {
       final path = '${directory.path}/${widget.batchname}.csv';
       final file = File(path);  
       await file.writeAsString(csv);
-      print('CSV saved at $path');
     }
     catch(e){
-      print('Error: $e');
+      setState(() {
+        error = e.toString();
+      });
     }
   }
 
   Future<void> requestPermission() async {
     if (await Permission.storage.request().isGranted) {
-      print('Permission Granted');
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Permission Granted')));
     }
     else {
-      print('Permission Denied');
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Permission Denied')));
     }
   }
     
@@ -121,6 +119,7 @@ class _ProgressPageState extends State<ProgressPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        iconTheme: const IconThemeData(color: Colors.white),
         backgroundColor: Theme.of(context).colorScheme.primary,
         title: Text(widget.batchname, style: const TextStyle(color: Colors.white)),
         actions: [
@@ -142,11 +141,8 @@ class _ProgressPageState extends State<ProgressPage> {
                             final directory = await getApplicationDocumentsDirectory();
                             final path = '${directory.path}/${widget.batchname}.csv';
                             final data = File(path).openRead();
-                            print(path);
                             data.transform(utf8.decoder).transform(const LineSplitter()).forEach((element) {
-                              print(element);
                             });
-                            //print(data);
                             Share.shareXFiles([XFile(path)], text: 'CSV file for ${widget.batchname}'); 
                             dbHelper.updateStatus(widget.batchname, 'Completed');
                             dbHelper.updateDate(widget.batchname, DateFormat('dd-MM-yyyy').format(DateTime.now()));
@@ -241,26 +237,24 @@ class _ProgressTabState extends State<ProgressTab> {
           Material(
             child: Container(
               color: Theme.of(context).colorScheme.primary,
-              child: Container(
-                child: TabBar(
-                  isScrollable: true,
-                  physics: const ClampingScrollPhysics(),
-                  padding: const EdgeInsets.all(10),
-                  indicator: const UnderlineTabIndicator(
-                    borderSide: BorderSide(width: 2.0, color: Colors.white),
-                    insets: EdgeInsets.symmetric(horizontal: 12.0),
-                  ),
-                  indicatorSize: TabBarIndicatorSize.tab,
-                  tabs: [
-                    for (int i = 0; i < widget.processes.length; i++)
-                      Tab(
-                        child: Text(
-                          widget.processes[i].toUpperCase(),
-                          style: const TextStyle(color: Colors.white),
-                        )
-                      ),
-                  ],
+              child: TabBar(
+                isScrollable: true,
+                physics: const ClampingScrollPhysics(),
+                padding: const EdgeInsets.all(10),
+                indicator: const UnderlineTabIndicator(
+                  borderSide: BorderSide(width: 2.0, color: Colors.white),
+                  insets: EdgeInsets.symmetric(horizontal: 12.0),
                 ),
+                indicatorSize: TabBarIndicatorSize.tab,
+                tabs: [
+                  for (int i = 0; i < widget.processes.length; i++)
+                    Tab(
+                      child: Text(
+                        widget.processes[i].toUpperCase(),
+                        style: const TextStyle(color: Colors.white),
+                      )
+                    ),
+                ],
               ),
             ),
           ),
@@ -286,7 +280,7 @@ class _ProgressTabState extends State<ProgressTab> {
                               ),
                               child: ExpansionTile(
                                 leading: IconButton(
-                                  icon: const Icon(Icons.comment_outlined),
+                                  icon: Icon(Icons.comment_outlined, color: frames[index]['comment'] == null ? Colors.grey : const Color.fromARGB(255, 141, 210, 144) , size: 30),
                                   onPressed: (){
                                     showDialog(
                                         context: context,
@@ -309,7 +303,7 @@ class _ProgressTabState extends State<ProgressTab> {
                                 : Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text("${frames[index]['model']}, ${frames[index]['size']}"),
+                                    Text("${frames[index]['model']}  ${frames[index]['size']}"),
                                     Text(
                                       time,
                                       style: const TextStyle(fontWeight: FontWeight.bold),
@@ -333,12 +327,12 @@ class _ProgressTabState extends State<ProgressTab> {
                               return Container(
                                 padding: const EdgeInsets.all(10),
                                 decoration: BoxDecoration(
-                                color: Colors.grey[200],
+                                //color: Colors.grey[200],
                                 borderRadius: BorderRadius.circular(10),
                                 ),
                                 child: CheckboxListTile(
                                   secondary: IconButton(
-                                    icon: const Icon(Icons.comment_outlined),
+                                    icon: Icon(Icons.comment_outlined, color: frames[index]['comment'] == null ? Colors.grey : const Color.fromARGB(255, 141, 210, 144) , size: 30),
                                     onPressed: (){
                                       showDialog(
                                         context: context,
@@ -350,7 +344,7 @@ class _ProgressTabState extends State<ProgressTab> {
                                     },
                                   ),
                                   title: Text("${frames[index]['frameNumber']}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
-                                  subtitle: Text("${frames[index]['model']}, ${frames[index]['size']}"),
+                                  subtitle: Text("${frames[index]['model']} ${frames[index]['size']}"),
                                   value: checked[widget.processes[i]]![frames[index]['frameNumber']],   
                                   onChanged: (bool? value) {
                                       setState(() {
@@ -373,11 +367,10 @@ class _ProgressTabState extends State<ProgressTab> {
                         padding: const EdgeInsets.symmetric(horizontal: 100, vertical: 10), 
                         child: ElevatedButton(
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Color.fromARGB(255, 229, 227, 223),
+                            backgroundColor: const Color.fromARGB(255, 229, 227, 223),
                           ),
                           onPressed: (){
                             setState(() {
-                              print(checkAll);
                               checkAll[processes[i]] = !checkAll[processes[i]]!;
                               for (int j = 0; j < frames.length; j++) {
                                 checked[widget.processes[i]]![frames[j]['frameNumber']] = checkAll[processes[i]]!;
@@ -405,7 +398,7 @@ class TimerClock extends StatefulWidget {
   final String batchName;
   final String time;
   final VoidCallback onDone;
-  TimerClock({Key? key, required this.frameNumber, required this.processName, required this.batchName, required this.time, required this.onDone}) : super(key: key);
+  const TimerClock({super.key, required this.frameNumber, required this.processName, required this.batchName, required this.time, required this.onDone});
 
   @override
   State<TimerClock> createState() => _TimerClockState();
@@ -488,7 +481,6 @@ class _TimerClockState extends State<TimerClock> {
   @override
   Widget build(BuildContext context) {
     String formattedTime = DateFormat('HH:mm:ss').format(DateTime.utc(0, 0, 0, 0, 0, _seconds));
-    //String formattedTime = widget.time;
     return Column(
           children: [
             Text(formattedTime, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
@@ -539,7 +531,6 @@ class _TimerClockState extends State<TimerClock> {
                   ),
                   child: const Text('Done', style: TextStyle(color: Colors.white),),
                   onPressed: (){
-                    //dbHelper.updateProcessTimer(widget.frameNumber, widget.processName, widget.batchName, formattedTime);
                     widget.onDone();
                   },
                 )
@@ -588,26 +579,24 @@ class _ExportCSVState extends State<ExportCSV> {
   Widget build(BuildContext context) {
     return AlertDialog.adaptive(
       title: const Text('Export CSV'),
-      content: Container(
-        child: DataTable(
-          columns: [
-            for (int i = 0; i < table.length; i++)
-              DataColumn(
-                label: Text(table[0][i].toString()),
-              ),
-            ],
-          rows: [
-            DataRow(
-              cells: [
-                for (int i = 0; i < table[1].length; i++)
-                  DataCell(
-                    Text(table[1][i].toString()),
-                  ),
-              ],
+      content: DataTable(
+        columns: [
+          for (int i = 0; i < table.length; i++)
+            DataColumn(
+              label: Text(table[0][i].toString()),
             ),
+          ],
+        rows: [
+          DataRow(
+            cells: [
+              for (int i = 0; i < table[1].length; i++)
+                DataCell(
+                  Text(table[1][i].toString()),
+                ),
             ],
           ),
-      ),
+          ],
+        ),
       actions: [
         TextButton( 
           onPressed: () {

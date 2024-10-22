@@ -281,7 +281,6 @@ class DatabaseHelper {
   }
 
   Future<dynamic> updateProcessTimer(String frameNumber, String processName, String batch, String value) async {
-    print('Updating $processName to $value');
     final db = await database;
     return await db.update('Frame', {processName: value}, where: 'frameNumber = ? AND batchNumber = ?', whereArgs: [frameNumber, batch]);
   } 
@@ -291,14 +290,36 @@ class DatabaseHelper {
     return await db.delete(table, where: 'batchName = ?', whereArgs: [batch]);
   }
 
-  Future<dynamic> deleteFrame(String table, String frame) async {
+  Future<dynamic> deleteFrame(String table, String frame, String batchNumber) async {
     final db = await database;
-    return await db.delete(table, where: 'frameNumber = ?', whereArgs: [frame]);
+    return await db.delete(table, where: 'frameNumber = ? AND batchNumber=?', whereArgs: [frame, batchNumber]);
   }
 
   Future<dynamic> deleteManufacture(String manufactureName) async {
     final db = await database;
     return await db.delete('Manufacture', where: 'manufactureName = ?', whereArgs: [manufactureName]);
+  }
+  Future<dynamic> deleteProcess(String processid, String processName) async {
+    final db = await database;
+    deleteProcessinFrame(processName.replaceAll(' ', ''));
+    var manufacture = await db.query('Manufacture');
+    for (var item in manufacture) {
+      var procedure = item['procedure'].toString().split(',');
+      if (procedure.contains(processid)) {
+        procedure.remove(processid);
+        var newProcedure = procedure.join(',');
+        updateManufacture(item['manufactureName'].toString(), newProcedure);
+      }
+    }
+    return await db.delete('Process', where: 'processName = ?', whereArgs: [processName]);
+  }
+  Future<dynamic> deleteProcessinFrame(String processName) async {
+    final db = await database;
+    return await db.execute("ALTER TABLE Frame DROP COLUMN $processName");
+  }
+  Future<dynamic> updateManufacture(String manufacture, String procedure) async {
+    final db = await database;
+    return await db.update('Manufacture', {'procedure': procedure}, where: 'manufactureName = ?', whereArgs: [manufacture]);
   }
 
   Future<dynamic> updateStatus(String batch, String status) async {

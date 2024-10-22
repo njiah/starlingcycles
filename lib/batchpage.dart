@@ -1,11 +1,5 @@
-import 'dart:ffi';
-import 'dart:async';
 import 'package:flutter/services.dart';
-import 'home.dart';
-import 'addbatch.dart';
 import 'package:flutter/material.dart'; 
-import 'package:intl/intl.dart';
-import 'package:sqflite/sqflite.dart';
 import 'database.dart'; 
 import 'progresspage.dart';
 
@@ -41,10 +35,8 @@ class _BatchPageState extends State<BatchPage> {
       status = batch[0]['Status'];
       dateCreated = batch[0]['dateCreated'];
       dateCompleted = batch[0]['dateCompleted']?? ''; 
-      print(status);
     });
     final data = await dbHelper.getBatchFrame('Frame', widget.batchName);
-    print(data);
     if (data.isNotEmpty) {
       setState(() {
         frames = data;
@@ -74,7 +66,10 @@ class _BatchPageState extends State<BatchPage> {
   }
 
   void _deleteFrame(String frameNumber) async {
-    await dbHelper.deleteFrame('Frame', frameNumber);
+    await dbHelper.deleteFrame('Frame', frameNumber, widget.batchName);
+  }
+  void _deleteBatch(String batchName) async {
+    await dbHelper.deleteBatch('Batch', batchName);
   }
 
   @override
@@ -82,16 +77,23 @@ class _BatchPageState extends State<BatchPage> {
     final String batchName = widget.batchName;
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: (){
+            Navigator.pop(context, 'trigger');
+          },
+        ),
         iconTheme: const IconThemeData(color: Colors.white),
         backgroundColor: Theme.of(context).colorScheme.primary,
         title: Text(widget.batchName, style: const TextStyle(color: Colors.white)),
-        actions: status != 'Completed' ? [
+        actions:[
+          status != 'Completed' ? 
           Container(
             margin: const EdgeInsets.only(right: 25),
             child: ElevatedButton(
               style: ElevatedButton.styleFrom(
                 foregroundColor: Colors.white,
-                backgroundColor: Color.fromARGB(255, 152, 201, 111), 
+                backgroundColor: const Color.fromARGB(255, 152, 201, 111), 
               //side: const BorderSide(color: Colors.white),
               ),
               onPressed: empty ? null : 
@@ -106,8 +108,46 @@ class _BatchPageState extends State<BatchPage> {
               },
               child: status == 'In Progress' ? const Text('Continue') : const Text('Start'),
             ),
-          )
-        ] : null,
+          ):
+          Container(
+            margin: const EdgeInsets.only(right: 25),
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                foregroundColor: Colors.white,
+                backgroundColor: Colors.red, 
+              //side: const BorderSide(color: Colors.white),
+              ),
+              onPressed: (){
+                showDialog(
+                  context: context,
+                  builder: (BuildContext context){
+                    return AlertDialog(
+                      title: const Text('Delete Batch'),
+                      content: const Text('Are you sure you want to delete this batch?'),
+                      actions: <Widget>[
+                        TextButton(
+                          onPressed: (){
+                            Navigator.pop(context);
+                          },
+                          child: const Text('Cancel'),
+                        ),
+                        TextButton(
+                          onPressed: () {
+                            _deleteBatch(widget.batchName);
+                            Navigator.pop(context);
+                            Navigator.pop(context, 'trigger');
+                          },
+                          child: const Text('Delete', style: TextStyle(color: Colors.red)),
+                        ),
+                      ],
+                    );
+                  },
+                );
+              },
+              child: const Text('Delete'),
+            ),
+          ),
+        ],
       ),
       body: ListView(
           padding: const EdgeInsets.all(50),
@@ -135,7 +175,7 @@ class _BatchPageState extends State<BatchPage> {
                       const Spacer(),
                       status == 'Completed' ? Text(
                         'Date Completed: $dateCompleted',
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.green),
+                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.green),
                       ) : 
                       const Spacer(),
                       /*Text(
@@ -182,6 +222,7 @@ class _BatchPageState extends State<BatchPage> {
                   DataCell(Text(e['frameNumber'])),
                   DataCell(Text(e['model'])),
                   DataCell(Text(e['size'])),
+                  status != 'Completed' ?
                   DataCell(
                     Container(
                       alignment: Alignment.centerRight,
@@ -214,11 +255,8 @@ class _BatchPageState extends State<BatchPage> {
                             },
                             
                           );
-                          //_deleteFrame(e['frameNumber']);
-                          //_queryFrames();
-                          //frames.remove(e);
                         },),
-                    ))
+                    )):DataCell(Container()),
                 ])).toList(),
               )
             ),
@@ -245,164 +283,10 @@ class _BatchPageState extends State<BatchPage> {
   }
 }
 
-/*class BatchTable extends StatefulWidget {
-  List frames = [];
-  //BatchTable({Key? key, this.frames = const []});
-  @override
-  State<BatchTable> createState() => _BatchTableState();
-}
-class _BatchTableState extends State<BatchTable> {
-  List<Map<String, dynamic>> _frames = [];
-  final dbHelper = DatabaseHelper();
-  void initState() {
-    super.initState();
-    _queryFrames();
-  }
-  void _queryFrames() async {
-    final data = await dbHelper.query('SC_account');
-    setState(() { 
-      _frames = data; 
-      });
-  }
-  @override
-  Widget build(BuildContext context) {
-    return DataTable(
-      columns: const <DataColumn>[
-        DataColumn(
-          label: Text(
-            'Frame Number',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-          ),
-        ),
-        DataColumn(
-          label: Text(
-            'Model',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-          ),
-        ),
-        DataColumn(
-          label: Text(
-            'Size',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-          ),
-        ),
-        DataColumn(
-          label: Text(
-            'Date Created',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-          ),
-        ),
-      ],
-      rows: const <DataRow>[
-        DataRow(
-          cells: <DataCell>[
-            DataCell(Text('M879')),
-            DataCell(Text('Murmur')),
-            DataCell(Text('L')),
-            DataCell(Text('01-01-2022')),
-          ],
-        ),
-        DataRow(
-          cells: <DataCell>[
-            DataCell(Text('M879')),
-            DataCell(Text('Murmur')),
-            DataCell(Text('L')),
-            DataCell(Text('01-01-2022')),
-          ],
-        ),
-        DataRow(
-          cells: <DataCell>[
-            DataCell(Text('M879')),
-            DataCell(Text('Murmur')),
-            DataCell(Text('L')),
-            DataCell(Text('01-01-2022')),
-          ],
-        ),
-      ],
-    );
-  }
-}
-*/
-
-/*class FrameTable extends StatefulWidget {
-  final String batchName;
-  List<Map<String, dynamic>> frames = []; 
-  FrameTable({Key? key, required this.batchName, required this.frames}) : super(key: key);
-  @override
-  State<FrameTable> createState() => _FrameTableState();
-}
-class _FrameTableState extends State<FrameTable>{
-  final dbHelper = DatabaseHelper();
-  List<Map<String, dynamic>> frames = [];
-
-  @override
-  void initState() {
-    super.initState();
-    _getFrames();
-  }
-
-  void _deleteFrame(String frameNumber) async {
-    await dbHelper.deleteFrame('Frame', frameNumber);
-  }
-
-  void _getFrames() async {
-    final data = await dbHelper.getBatchFrame('Frame', widget.batchName);
-    setState(() {
-      frames = data;
-    });
-  }
-
-  @override
-  Widget build(BuildContext context){
-    final items = widget.frames;
-    if (items.isEmpty) {
-
-      return const Center(
-          child: Text('No frames yet'),
-      );
-    }
-    else {
-      return DataTable(
-      columns: const [
-          DataColumn(label: Text(
-            'Frame Number',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-            ),),
-          DataColumn(label: Text(
-            'Model',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-            )),
-          DataColumn(label: Text(
-            'Size',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-            ),
-          ),
-          DataColumn(label: Text(''))
-        ], 
-        rows: items.map(
-          (e) => DataRow(cells: [
-            DataCell(Text(e['frameNumber'])),
-            DataCell(Text(e['model'])),
-            DataCell(Text(e['size'])),
-            DataCell(
-              Container(
-                alignment: Alignment.centerRight,
-                child: IconButton(
-                  icon: const Icon(Icons.delete),
-                  onPressed: (){
-                    _deleteFrame(e['frameNumber']);
-                    _getFrames();
-                  },),
-              ))
-          ])).toList(),
-      );
-    }
-  }
-}*/
 
 class AddFrameForm extends StatefulWidget{
   final String batchName;
-  const AddFrameForm({Key? key, required this.batchName}) : super(key: key);
+  const AddFrameForm({super.key, required this.batchName});
 
   @override
   State<AddFrameForm> createState() => _AddFrameFormState();
@@ -451,7 +335,6 @@ class _AddFrameFormState extends State<AddFrameForm> {
         'size': _sizeController.text,
         'batchNumber': widget.batchName,  
       };
-      //final addedFrame = await dbHelper.insertFrame('Frame', frame);
       final exist = await dbHelper.getFrame(_frameNumberController.text);
       if (exist.isNotEmpty) {
         setState(() {
@@ -459,11 +342,8 @@ class _AddFrameFormState extends State<AddFrameForm> {
         });
       }
       else {
+        frameError = '';
         await dbHelper.insertFrame('Frame', frame);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Frame added')),
-        );
-        Navigator.pop(context, true);
       }
     }
   }
@@ -548,6 +428,9 @@ class _AddFrameFormState extends State<AddFrameForm> {
         TextButton(
           onPressed: () {
             _addFrame();
+            if (frameError!='') {
+              Navigator.of(context).pop(true);
+            }
           },
           child: const Text('Add'),
         ),
@@ -581,98 +464,3 @@ class SizeTextFormatter extends TextInputFormatter {
     );
   }
 }
-
-/*class TimerWidget extends StatefulWidget {
-  //const TimerWidget({Key? key}) : super(key: key);
-  @override
-  State<TimerWidget> createState() => _TimerWidgetState();
-}
-class _TimerWidgetState extends State<TimerWidget>{
-  int _seconds = 0;
-  Timer? _timer;
-  bool _isActive = false;
-
-  @override
-  void dispose(){
-    _timer?.cancel();
-    super.dispose();
-  }
-
-  void startTimer(){
-    if (_isActive) return;
-
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      setState(() {
-        _seconds++;
-      });
-    });
-
-    setState((){
-      _isActive = true;
-    });
-  }
-  
-  void stopTimer(){
-    //if (!_isActive) return;
-
-    _timer?.cancel();
-    setState((){
-      _seconds = 0;
-      _isActive = false;
-    });
-  }
-
-  void pauseTimer(){
-    if (!_isActive) return;
-
-    _timer?.cancel();
-    setState((){
-      _isActive = false;
-    });
-  }
-
-  bool selected = false;  
-  @override
-  Widget build(BuildContext context){
-    String formattedTime = DateFormat('HH:mm:ss').format(DateTime(0).add(Duration(seconds: _seconds)));
-    return Column(
-      children: <Widget>[
-        Text(
-          formattedTime,
-          style: const TextStyle(fontSize: 48),
-        ),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            IconButton.filledTonal(
-              isSelected: selected,
-              icon: const Icon(Icons.play_arrow),
-              selectedIcon: const Icon(Icons.pause),
-              onPressed: (){
-                if (selected) {
-                  pauseTimer();
-                } else {
-                  startTimer();
-                }
-                setState(() {
-                  selected = !selected;
-                });
-              },
-              //child: const Text('Start'),
-            ),
-            const SizedBox(width: 20),
-            ElevatedButton(
-              onPressed: (){
-                stopTimer();
-                setState(() {
-                  selected = false;
-                });
-              },
-              child: const Text('Reset'),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-}*/
